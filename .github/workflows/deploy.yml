@@ -1,0 +1,43 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build site
+        env:
+          VERSION: ${{ github.sha }}
+        run: |
+          mkdir dist
+          cp -R index.html js CNAME dist/
+          # Stamp the deployed version into the page and bust the script cache.
+          sed -i "s|<meta name=\"version\" content=\"dev\">|<meta name=\"version\" content=\"$VERSION\">|" dist/index.html
+          sed -i "s|src=\"js/\([a-z]*\)\.js\"|src=\"js/\1.js?v=$VERSION\"|g" dist/index.html
+          printf '{"version":"%s"}\n' "$VERSION" > dist/version.json
+          grep -q "content=\"$VERSION\"" dist/index.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
