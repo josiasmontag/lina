@@ -21,12 +21,23 @@ const DIRV = { down: [0, 1], up: [0, -1], left: [-1, 0], right: [1, 0] };
 // ---------------------------------------------------------------- setup ----
 function resize() {
   // The canvas runs at full device resolution; one game pixel = WS device pixels.
+  // It fills the screen via CSS and we measure it, rather than trusting
+  // innerHeight, which iOS reports too small at launch and after rotating.
   const dpr = window.devicePixelRatio || 1;
+  cv.style.width = cv.style.height = '';
+  let w = cv.clientWidth || innerWidth, h = cv.clientHeight || innerHeight;
+  if (navigator.standalone) { // home screen app: always the whole screen
+    const land = w > h;
+    w = Math.max(w, land ? screen.height : screen.width);
+    h = Math.max(h, land ? screen.width : screen.height);
+    cv.style.width = w + 'px'; cv.style.height = h + 'px';
+  }
   // Fit about 235 game pixels vertically, but keep phones in portrait wide enough.
-  SCALE = Math.max(2, Math.round(Math.min(innerHeight / 235, innerWidth / 300)));
+  SCALE = Math.max(2, Math.round(Math.min(h / 235, w / 300)));
   WS = Math.max(2, Math.round(SCALE * dpr));
-  cv.width = Math.round(innerWidth * dpr); cv.height = Math.round(innerHeight * dpr);
-  cv.style.width = innerWidth + 'px'; cv.style.height = innerHeight + 'px';
+  const cw = Math.round(w * dpr), ch = Math.round(h * dpr);
+  if (cv.width === cw && cv.height === ch && vignette) return;
+  cv.width = cw; cv.height = ch;
   VW = cv.width / WS; VH = cv.height / WS;
   ctx.imageSmoothingEnabled = false;
   const [c, g] = makeCanvas(Math.ceil(VW), Math.ceil(VH));
@@ -54,6 +65,8 @@ function makeClouds() {
 function init() {
   resize();
   addEventListener('resize', resize);
+  addEventListener('orientationchange', () => setTimeout(resize, 300));
+  if (window.ResizeObserver) new ResizeObserver(resize).observe(cv);
   makeClouds();
   G.scenes.out = buildOutdoor();
   Object.assign(G.scenes, buildInteriors());
