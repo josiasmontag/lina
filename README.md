@@ -23,6 +23,7 @@ then open http://localhost:8765.
 | Show controls | H | | |
 
 Walk up to a door to go inside. Walk down onto the doormat to leave.
+At the crossroads, press the button on a pedestrian light to make it turn green sooner.
 Use the mirror in Lina's room to switch between pigtails and loose hair.
 
 ## iPhone and iPad
@@ -38,7 +39,7 @@ The icons in `icons/` are drawn from the game's own sprites. Run
 
 - `js/util.js`: pixel drawing helpers and auto-outlined sprites
 - `js/sprites.js`: Lina, her pink woom bike, the cat, icons
-- `js/props.js`: houses, trees, playground, furniture
-- `js/scenes.js`: the street, the park and the three house interiors
+- `js/props.js`: houses, trees, playground, furniture, traffic lights, building site
+- `js/scenes.js`: the street, the crossroads, the park and the three house interiors
 - `js/main.js`: game loop, movement, bike, camera, lighting
 - `js/audio.js` / `js/input.js`: synthesized sounds, keyboard, gamepad and touch

@@ -12,7 +12,7 @@ const G = {
   particles: [], trans: null, target: null, night: 0, shake: 0, camOff: { x: 0, y: -14 },
 };
 const Pl = { x: 0, y: 0, dir: 'down', vx: 0, vy: 0, riding: false, dist: 0, frame: 0, moving: false,
-  swing: null, sleep: null, blink: 0, blinkT: 2.5, jump: 0 };
+  swing: null, sleep: null, blink: 0, blinkT: 2.5, jump: 0, earsT: 0 };
 const bike = { scene: 'out', x: 0, y: 0, face: 'right' };
 const cat = { x: 600, y: 520, tx: 600, ty: 520, state: 'sit', t: 2, face: 'right', dist: 0, follow: 0 };
 const butterflies = [];
@@ -146,6 +146,7 @@ function burst(x, y, kind, n) {
     if (kind === 'crumb') { p.col = pick(Math.random, ['#c6863f', '#e2a95c', '#f0d09a']); p.g = 120; p.vy = -40; p.life = p.max = 0.9; }
     if (kind === 'spark') { p.col = pick(Math.random, ['#ffd24a', '#ff9a3c', '#fff0a0']); p.vy = -30 - Math.random() * 30; p.life = p.max = 0.8; }
     if (kind === 'leaf') { p.col = pick(Math.random, ['#55873d', '#76a54a', '#3c6934']); p.g = 40; p.vy = -35; p.vx *= 1.8; }
+    if (kind === 'debris') { p.col = pick(Math.random, ['#9a9698', '#bdb19c', '#7d5c3e', '#c4bfb6']); p.g = 160; p.vy = -35 - Math.random() * 25; p.vx *= 1.4; p.life = p.max = 0.6; }
     if (kind === 'dust') { p.col = 'rgba(220,205,180,0.8)'; p.vy = -6 - Math.random() * 6; p.vx *= 0.4; p.life = p.max = 0.5; }
     if (kind === 'z') { p.vx = 6 + Math.random() * 6; p.life = p.max = 2.2; }
     G.particles.push(p);
@@ -344,6 +345,10 @@ function updatePlayer(dt) {
     burst(Pl.x - Math.sign(Pl.vx) * 10, Pl.y - 1, 'dust', 1);
   }
 
+  // too loud here: hands over her ears (not while holding the handlebars)
+  const loud = !Pl.riding && G.scene.loudAt && G.scene.loudAt(Pl.x, Pl.y);
+  Pl.earsT = loud ? 0.25 : Math.max(0, Pl.earsT - dt);
+
   if (Pl.jump > 0) Pl.jump -= dt;
   Pl.blinkT -= dt;
   if (Pl.blinkT < 0) { Pl.blink = 0.13; Pl.blinkT = 2.2 + Math.random() * 2.5; }
@@ -366,7 +371,7 @@ function updateCat(dt) {
   if (cat.state === 'sit') {
     if (cat.t <= 0 && !following) {
       cat.state = 'walk';
-      cat.tx = Math.max(60, Math.min(OUT.W - 60, cat.x + (Math.random() - 0.5) * 220));
+      cat.tx = Math.max(60, Math.min(OUT.junction - 90, cat.x + (Math.random() - 0.5) * 220));
       cat.ty = Math.max(OUT.sw2B + 20, Math.min(OUT.H - 60, cat.y + (Math.random() - 0.5) * 140));
       cat.t = 8;
     }
@@ -420,6 +425,7 @@ function updateWorld(dt) {
   updateButterflies(dt);
   spawnLeaves(dt);
   updateParticles(dt);
+  G.scenes.out.update(dt);
   for (const o of G.scene.objects) {
     if (o.hop > 0) o.hop -= dt;
     if (o.amp !== undefined) {
@@ -468,6 +474,7 @@ function drawPlayer() {
   const z = Pl.jump > 0 ? Math.sin(Math.PI * (1 - Pl.jump / 0.42)) * 7 : 0;
   let s;
   if (Pl.riding) s = SPR.rider[Pl.dir][Pl.frame];
+  else if (Pl.earsT > 0) s = SPR.ears[Pl.dir][Pl.frame];
   else if (Pl.blink > 0 && !Pl.moving) s = SPR.blink[Pl.dir];
   else s = SPR.lina[Pl.dir][Pl.frame];
   drawSprite(ctx, s, Pl.x, Pl.y - z);
@@ -526,6 +533,7 @@ function render() {
   // light
   ctx.globalCompositeOperation = 'lighter';
   for (const o of sc.objects) if (o.glow) glow(o.x, o.y + o.glow.dy, o.glow.r, '255,200,120', 0.16);
+  for (const o of sc.objects) if (o.glowFn) o.glowFn();
   for (const gl of sc.glows || []) glow(gl.x, gl.y, gl.r * (gl.flicker ? 1 + Math.sin(G.t * 13) * 0.05 + Math.sin(G.t * 7.3) * 0.04 : 1), gl.col, 0.28);
   if (!sc.outdoor) for (const wx of sc.windows) {
     ctx.fillStyle = 'rgba(255,240,200,0.07)';

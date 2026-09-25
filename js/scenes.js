@@ -13,9 +13,11 @@ function obj(x, y, spr, o = {}) { return Object.assign({ x, y, spr }, o); }
 // OUTDOOR
 // --------------------------------------------------------------------------
 const OUT = {
-  W: 72 * 16, H: 46 * 16,
+  W: 90 * 16, H: 46 * 16,
   base: 176, sw1: 208, road: 240, roadB: 304, sw2B: 336,
   cross: 544,
+  junction: 1216, // centre of the side street at the crossroads
+  site: { x0: 1294, x1: 1398, y0: 172, y1: 224, wx: 1348, wy: 219 },
   gravel: { x: 340, y: 525, rx: 118, ry: 70 },
   swing: { x: 730, y: 478 },
   houses: [
@@ -70,9 +72,9 @@ function buildOutdoorGround(flowerSpots) {
   }
 
   // sidewalks (square pavers)
-  const pave = (y0, y1) => {
-    R(g, 0, y0, W, y1 - y0, '#bdb19c');
-    for (let y = y0; y < y1; y += 8) for (let x = 0; x < W; x += 8) {
+  const pave = (y0, y1, x0 = 0, x1 = W) => {
+    R(g, x0, y0, x1 - x0, y1 - y0, '#bdb19c');
+    for (let y = y0; y < y1; y += 8) for (let x = x0; x < x1; x += 8) {
       if (r() < 0.35) R(g, x + 1, y + 1, 7, 7, r() < 0.5 ? 'rgba(255,255,255,0.07)' : 'rgba(60,40,20,0.06)');
       R(g, x, y, 8, 1, '#a39781'); R(g, x, y, 1, 8, '#a39781');
       if (r() < 0.015) { P(g, x, y + 3, '#6e9444'); P(g, x + 1, y + 2, '#83a94f'); }
@@ -80,20 +82,26 @@ function buildOutdoorGround(flowerSpots) {
   };
   pave(OUT.sw1, OUT.road); pave(OUT.roadB, OUT.sw2B);
 
-  // cobblestone road
-  R(g, 0, OUT.road, W, OUT.roadB - OUT.road, '#4d494e');
+  // cobblestone road (bricks run along the road)
   const stones = ['#8d8a8c', '#9a9698', '#7f7c80', '#a5a1a0', '#8a8480', '#96918a'];
-  for (let y = OUT.road, row = 0; y < OUT.roadB; y += 5, row++) {
-    for (let x = -(row % 2) * 3; x < W; x += 6) {
-      const col = pick(r, stones);
-      R(g, x, y, 5, 4, col); R(g, x, y, 5, 1, shade(col, 0.15)); R(g, x, y + 3, 5, 1, shade(col, -0.18));
+  const cobbles = (x0, y0, x1, y1, vertical) => {
+    g.save(); g.beginPath(); g.rect(x0, y0, x1 - x0, y1 - y0); g.clip();
+    R(g, x0, y0, x1 - x0, y1 - y0, '#4d494e');
+    const [bw, bh, sx, sy] = vertical ? [4, 5, 5, 6] : [5, 4, 6, 5];
+    const [a0, a1, b0, b1, da, db] = vertical ? [x0, x1, y0, y1, sx, sy] : [y0, y1, x0, x1, sy, sx];
+    for (let a = a0, row = 0; a < a1; a += da, row++) for (let b = b0 - (row % 2) * 3; b < b1; b += db) {
+      const col = pick(r, stones), x = vertical ? a : b, y = vertical ? b : a;
+      R(g, x, y, bw, bh, col); R(g, x, y, bw, 1, shade(col, 0.15)); R(g, x, y + bh - 1, bw, 1, shade(col, -0.18));
     }
-  }
-  // zebra crossing
-  for (let y = OUT.road + 3; y < OUT.roadB - 3; y += 9) {
-    R(g, OUT.cross - 24, y, 48, 5, 'rgba(240,236,224,0.88)');
-    for (let i = 0; i < 12; i++) P(g, OUT.cross - 24 + (r() * 48 | 0), y + (r() * 5 | 0), 'rgba(90,85,90,0.6)');
-  }
+    g.restore();
+  };
+  cobbles(0, OUT.road, W, OUT.roadB, false);
+  // zebra crossings
+  const stripe = (x, y, w, h) => {
+    R(g, x, y, w, h, 'rgba(240,236,224,0.88)');
+    for (let i = 0; i < w * h / 20; i++) P(g, x + (r() * w | 0), y + (r() * h | 0), 'rgba(90,85,90,0.6)');
+  };
+  for (let y = OUT.road + 3; y < OUT.roadB - 3; y += 9) stripe(OUT.cross - 24, y, 48, 5);
   // curbs
   R(g, 0, OUT.road - 2, W, 2, '#d8d1c4'); R(g, 0, OUT.road, W, 1, '#2f2b30');
   R(g, 0, OUT.roadB, W, 2, '#d8d1c4'); R(g, 0, OUT.roadB - 1, W, 1, '#2f2b30');
@@ -103,6 +111,36 @@ function buildOutdoorGround(flowerSpots) {
     if (r() < 0.45) P(g, x, y, r() < 0.5 ? '#5a7d37' : '#83a94f');
     if (r() < 0.15) P(g, x, y + (y === OUT.sw1 ? 1 : -1), '#5a7d37');
   }
+
+  // the crossroads: a side street running north-south through the junction,
+  // with sidewalks on both sides and a crossing over every arm
+  const J = OUT.junction, vr0 = J - 32, vr1 = J + 32;
+  for (const [y0, y1] of [[0, OUT.road], [OUT.roadB, H]]) {
+    pave(y0, y1, vr0 - 32, vr0); pave(y0, y1, vr1, vr1 + 32);
+    cobbles(vr0, y0, vr1, y1, true);
+    R(g, vr0 - 2, y0, 2, y1 - y0, '#d8d1c4'); R(g, vr0, y0, 1, y1 - y0, '#2f2b30');
+    R(g, vr1, y0, 2, y1 - y0, '#d8d1c4'); R(g, vr1 - 1, y0, 1, y1 - y0, '#2f2b30');
+    for (let y = y0; y < y1; y++) {
+      if (y >= OUT.sw1 && y < OUT.sw2B) continue;
+      for (const x of [vr0 - 32, vr1 + 31]) if (r() < 0.45) P(g, x, y, r() < 0.5 ? '#5a7d37' : '#83a94f');
+    }
+  }
+  for (const y0 of [OUT.sw1 + 4, OUT.roadB + 4]) for (let x = vr0 + 3; x < vr1 - 3; x += 9) stripe(x, y0, 5, 24);
+  for (const x0 of [vr0 - 28, vr1 + 4]) for (let y = OUT.road + 3; y < OUT.roadB - 3; y += 9) stripe(x0, y, 24, 5);
+
+  // building site: dug-up earth, a pit and a torn-up bit of sidewalk
+  const st = OUT.site;
+  for (let y = st.y0; y < st.y1; y++) for (let x = st.x0; x < st.x1; x++) {
+    const edge = Math.min(x - st.x0, st.x1 - 1 - x, y - st.y0, st.y1 - 1 - y);
+    if (edge < 3 && r() < 0.5 - edge * 0.15) continue;
+    P(g, x, y, r() < 0.8 ? pick(r, ['#7d5c3e', '#86654a', '#735437']) : pick(r, ['#5e4430', '#9a7a58']));
+  }
+  oval(g, 1322, 194, 15, 7, '#5e4430'); oval(g, 1322, 195, 13, 5, '#3a281c'); oval(g, 1322, 197, 10, 3, '#2a1c14');
+  for (let i = 0; i < 14; i++) { // broken paving slabs
+    const x = st.x0 + 6 + (r() * (st.x1 - st.x0 - 14) | 0), y = OUT.sw1 + (r() * 12 | 0);
+    R(g, x, y, 6, 5, '#bdb19c'); R(g, x, y + 4, 6, 1, '#8f8068'); R(g, x, y, 6, 1, '#d4c7ad');
+  }
+  for (const [dx, dy] of [[-9, -3], [8, -4], [-6, 3], [10, 2], [0, -6]]) line(g, st.wx, st.wy - 1, st.wx + dx, st.wy - 1 + dy, '#3a2a20');
 
   // dirt paths through the park
   const path = [[OUT.cross, OUT.sw2B + 14], [OUT.cross, 440], [470, 470], [430, 488]];
@@ -147,7 +185,7 @@ function buildOutdoorGround(flowerSpots) {
   // flower patches in the park (butterflies like these)
   for (let i = 0; i < 18; i++) {
     const x = 60 + r() * (W - 120), y = OUT.sw2B + 30 + r() * (H - OUT.sw2B - 80);
-    if (inGravel(x, y) || Math.hypot(x - s.x, y - s.y) < 70 || Math.abs(x - OUT.cross) < 30) continue;
+    if (inGravel(x, y) || Math.hypot(x - s.x, y - s.y) < 70 || Math.abs(x - OUT.cross) < 30 || Math.abs(x - OUT.junction) < 90) continue;
     flowerSpots.push([x, y]);
     const col = pick(r, ['#e5484d', '#f28bb0', '#ffd35a', '#ffffff', '#c86ad8', '#7ab8ff']);
     for (let k = 0; k < 26; k++) {
@@ -205,19 +243,25 @@ function buildOutdoor() {
   const oaks = [], pines = [];
   for (let i = 0; i < 8; i++) oaks.push(makeTree(100 + i, i === 3 || i === 6 ? 'autumn' : i % 3 === 0 ? 'lime' : 'green'));
   for (let i = 0; i < 3; i++) pines.push(makePine(200 + i));
-  const tree = (x, y, pine) => {
-    const s = pine ? pick(r, pines) : pick(r, oaks);
+  // Everything west of the side street keeps its old layout; the new part
+  // east of it gets its own random stream.
+  const west = OUT.junction - 64, east = OUT.junction + 76, r2 = rng(777);
+  const tree = (x, y, pine, rr = r) => {
+    const s = pine ? pick(rr, pines) : pick(rr, oaks);
     reserved.push([x, y, 14]);
     return add(obj(x, y, s, { shadow: pine ? [9, 3] : [14, 4], solid: { x: x - 4, y: y - 4, w: 8, h: 4 }, tree: true }));
   };
 
   // forest behind the houses
-  for (let x = 6; x < W; x += 22 + r() * 10) tree(x, 60 + r() * 20, r() < 0.4);
-  for (let x = 20; x < W; x += 30 + r() * 16) tree(x, 100 + r() * 14, r() < 0.3);
+  for (let x = 6; x < west; x += 22 + r() * 10) tree(x, 60 + r() * 20, r() < 0.4);
+  for (let x = 20; x < west; x += 30 + r() * 16) tree(x, 100 + r() * 14, r() < 0.3);
+  for (let x = east; x < W; x += 22 + r2() * 10) tree(x, 60 + r2() * 20, r2() < 0.4, r2);
+  for (let x = east + 10; x < W; x += 30 + r2() * 16) tree(x, 100 + r2() * 14, r2() < 0.3, r2);
   // side and bottom borders
   for (let y = 130; y < OUT.sw1; y += 26) { tree(12 + r() * 8, y, true); tree(W - 12 - r() * 8, y, true); }
   for (let y = OUT.sw2B + 30; y < H - 20; y += 26 + r() * 8) { tree(10 + r() * 10, y, r() < 0.5); tree(W - 10 - r() * 10, y, r() < 0.5); }
-  for (let x = 30; x < W - 20; x += 24 + r() * 10) tree(x, H - 6 - r() * 10, r() < 0.4);
+  for (let x = 30; x < west - 20; x += 24 + r() * 10) tree(x, H - 6 - r() * 10, r() < 0.4);
+  for (let x = east; x < W - 20; x += 24 + r2() * 10) tree(x, H - 6 - r2() * 10, r2() < 0.4, r2);
   // garden trees & bushes between houses
   tree(400, 160); tree(690, 158); tree(980, 162); tree(110, 165);
   const bushes = [makeBush(1, '#f28bb0'), makeBush(2, null), makeBush(3, '#ffffff'), makeBush(4, '#ffd35a')];
@@ -271,17 +315,154 @@ function buildOutdoor() {
   reserved.push([OUT.cross, 380, 30], [OUT.cross, 440, 30], [620, 460, 30], [480, 470, 30]);
   let tries = 0, placed = 0;
   while (placed < 20 && tries++ < 400) {
-    const x = 60 + r() * (W - 120), y = OUT.sw2B + 50 + r() * (H - OUT.sw2B - 100);
+    const x = 60 + r() * (west - 120), y = OUT.sw2B + 50 + r() * (H - OUT.sw2B - 100);
     if (!isFree(x, y, 26)) continue;
     tree(x, y, r() < 0.15); placed++;
   }
   for (let i = 0; i < 8; i++) {
-    const x = 60 + r() * (W - 120), y = OUT.sw2B + 40 + r() * (H - OUT.sw2B - 90);
+    const x = 60 + r() * (west - 120), y = OUT.sw2B + 40 + r() * (H - OUT.sw2B - 90);
     if (!isFree(x, y, 16)) continue;
     reserved.push([x, y, 12]);
     add(obj(x, y, pick(r, bushes), { shadow: [10, 2], solid: { x: x - 9, y: y - 4, w: 18, h: 4 } }));
   }
+  add(obj(east + 60, OUT.sw2B + 40, bench, { shadow: [15, 2], solid: { x: east + 44, y: OUT.sw2B + 34, w: 32, h: 6 } }));
+  reserved.push([east + 60, OUT.sw2B + 36, 24]);
+  for (let i = 0; i < 40 && placed < 26; i++) {
+    const x = east + 10 + r2() * (W - east - 50), y = OUT.sw2B + 50 + r2() * (H - OUT.sw2B - 100);
+    if (!isFree(x, y, 26)) continue;
+    tree(x, y, r2() < 0.2, r2); placed++;
+  }
+
+  buildCrossroads(sc, add, lamp);
   return sc;
+}
+
+// Pedestrian lights: the 'ns' lights guard the crossings over the side street,
+// the 'ew' ones the crossings over the main street. They take turns; pressing
+// the button makes the waiting side come sooner ("Signal kommt").
+function makePedSignals() {
+  const PH = [['ns', 8], [null, 2], ['ew', 8], [null, 2]];
+  const other = { ns: 'ew', ew: 'ns' };
+  return {
+    phase: 0, t: 0, waiting: { ns: false, ew: false },
+    green(gr) { return PH[this.phase][0] === gr; },
+    press(gr) { if (!this.green(gr)) this.waiting[gr] = true; },
+    update(dt) {
+      const [cur, dur] = PH[this.phase];
+      this.t += dt;
+      if (cur && this.waiting[other[cur]]) this.t = Math.max(this.t, dur - 2);
+      if (this.t >= dur) {
+        this.t = 0; this.phase = (this.phase + 1) % PH.length;
+        const gr = PH[this.phase][0];
+        if (gr) this.waiting[gr] = false;
+      }
+    },
+  };
+}
+
+// Draws a little bitmap straight onto the game canvas, in world pixels.
+function pixels(ctx, rows, x, y, col) {
+  ctx.fillStyle = col;
+  rows.forEach((row, j) => { for (let i = 0; i < row.length; i++) if (row[i] === '#') ctx.fillRect(x + i, y + j, 1, 1); });
+}
+// World position of pixel (px, py) as drawn inside an object's sprite.
+function sprPx(o, px, py) { return [Math.round(o.x) - o.spr.ax + 1 + px, Math.round(o.y) - o.spr.ay + 1 + py]; }
+
+function buildCrossroads(sc, add, lamp) {
+  const J = OUT.junction, st = OUT.site;
+  const lampAt = (x, y) => add(obj(x, y, lamp, { shadow: [4, 1], solid: { x: x - 2, y: y - 3, w: 4, h: 3 }, glow: { dy: -38, r: 30 } }));
+  lampAt(J - 100, OUT.sw1 + 6); lampAt(J - 100, OUT.sw2B - 2); lampAt(J + 120, OUT.sw2B - 2);
+
+  // pedestrian lights, one on each corner
+  const peds = makePedSignals(), pedSpr = makePedLight();
+  sc.peds = peds;
+  const poles = [];
+  for (const [x, y, group] of [[J - 38, OUT.road - 5, 'ns'], [J + 38, OUT.road - 5, 'ew'], [J - 38, OUT.roadB + 9, 'ew'], [J + 38, OUT.roadB + 9, 'ns']]) {
+    poles.push(add(obj(x, y, pedSpr, {
+      group, shadow: [3, 1], solid: { x: x - 2, y: y - 3, w: 5, h: 3 },
+      draw(ctx) {
+        drawSprite(ctx, this.spr, this.x, this.y);
+        const go = peds.green(this.group), [ox, oy] = sprPx(this, 0, 0);
+        pixels(ctx, PED_STAND, ox + 2, oy + 1, go ? '#4a1f1c' : '#ff5040');
+        pixels(ctx, PED_WALK, ox + 2, oy + 8, go ? '#6dff96' : '#1d3a26');
+        if (peds.waiting[this.group]) { ctx.fillStyle = '#ffd0b0'; ctx.fillRect(ox + 7, oy + 25, 3, 2); }
+      },
+      glowFn() {
+        const go = peds.green(this.group), [ox, oy] = sprPx(this, 4, go ? 11 : 4);
+        glow(ox, oy, 10, go ? '90,255,140' : '255,80,60', 0.25);
+      },
+      interact: o => {
+        Sound.press();
+        if (peds.green(o.group)) burst(o.x, o.y - 52, 'star', 2);
+        else { peds.press(o.group); burst(o.x + 3, o.y - 30, 'star', 3); }
+      },
+    })));
+  }
+
+  // the building site on the north-east corner
+  const barrier = (x, y, len) => add(obj(x, y, makeBarrier(len), {
+      draw(ctx) {
+        drawSprite(ctx, this.spr, this.x, this.y);
+        if (Math.sin(G.t * 7) > 0) { const [lx, ly] = sprPx(this, 1, 1); ctx.fillStyle = '#ffd23a'; ctx.fillRect(lx, ly, 2, 2); }
+      },
+      glowFn() { if (Math.sin(G.t * 7) > 0) { const [lx, ly] = sprPx(this, 2, 2); glow(lx, ly, 12, '255,190,60', 0.3); } },
+  }));
+  barrier(st.x0, st.y0 - 2, st.x1 - st.x0);
+  barrier(st.x0, st.y1 + 2, 38);
+  barrier(st.x1 - 32, st.y1 + 2, 32);
+  const cone = makeCone();
+  for (const [x, y] of [[st.x0 + 42, st.y1 + 5], [st.x0 + 68, st.y1 + 5], [st.x0 + 2, 190], [st.x0 + 2, 208], [st.x1 - 2, 190], [st.x1 - 2, 208]]) {
+    add(obj(x, y, cone, { shadow: [4, 1] }));
+  }
+  add(obj(st.x0 + 16, 214, makeWorkSign(), { shadow: [6, 1] }));
+  add(obj(st.x1 - 18, 204, makeSandPile(), { shadow: [14, 2] }));
+  sc.solids.push({ x: st.x0 - 4, y: st.y0 - 8, w: st.x1 - st.x0 + 8, h: st.y1 - st.y0 + 12 });
+
+  // the worker with his jackhammer: hammers in bursts, waves when Lina says hi
+  const poses = [makeWorker(0), makeWorker(1), makeWorker('wave')];
+  const worker = add(obj(st.wx, st.wy, poses[0], {
+    shadow: [9, 2], iy: st.wy + 4, state: 'hammer', t: 3, hit: 0, frame: 0,
+    draw(ctx) {
+      const s = this.state === 'wave' ? poses[2] : poses[this.state === 'hammer' ? this.frame : 0];
+      drawSprite(ctx, s, this.x, this.y - (this.state === 'wave' && Math.sin(G.t * 10) > 0 ? 1 : 0));
+    },
+    interact: o => { o.state = 'wave'; o.t = 3; Sound.hello(); burst(o.x, o.y - 44, 'heart', 3); },
+  }));
+
+  // Is it too loud here? (Lina covers her ears.)
+  sc.loudAt = (x, y) => worker.state === 'hammer' && Math.hypot(x - worker.x, (y - worker.y) * 1.3) < 80;
+
+  let tickT = 0;
+  sc.update = dt => {
+    peds.update(dt);
+    const here = G.scene === sc;
+    const w = worker;
+    w.t -= dt;
+    if (w.t <= 0) {
+      if (w.state === 'hammer') { w.state = 'rest'; w.t = 1.2 + Math.random(); }
+      else { w.state = 'hammer'; w.t = 2.5 + Math.random() * 1.5; }
+    }
+    if (w.state === 'hammer') {
+      w.hit -= dt;
+      if (w.hit <= 0) {
+        w.hit = 1 / 14; w.frame ^= 1;
+        if (here) {
+          const d = Math.hypot(Pl.x - w.x, Pl.y - w.y);
+          if (d < 340) Sound.jackhammer(0.22 * Math.pow(1 - d / 340, 1.6));
+          if (w.frame === 0) burst(w.x - 1, w.y, Math.random() < 0.5 ? 'debris' : 'dust', 1);
+        }
+      }
+    }
+    // the lights tick for blind people: slowly on red, quickly on green
+    tickT -= dt;
+    if (here && tickT <= 0) {
+      let best = null, bd = 70;
+      for (const p of poles) { const d = Math.hypot(Pl.x - p.x, Pl.y - p.y); if (d < bd) { bd = d; best = p; } }
+      const go = best && peds.green(best.group);
+      tickT = go ? 0.2 : 1.1;
+      if (best) Sound.tick(0.12 * (1 - bd / 70), go);
+    }
+  };
 }
 
 // --------------------------------------------------------------------------

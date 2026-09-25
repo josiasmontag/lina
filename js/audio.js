@@ -251,6 +251,15 @@ const Sound = (() => {
       }
       return dur;
     },
+    // one blow of the jackhammer; called ~14 times a second while it runs
+    jackhammer(vol) {
+      noise(0.05, { vol, freq: 650 + Math.random() * 350, q: 0.7 });
+      tone(52 + Math.random() * 8, 0.05, { type: 'square', vol: vol * 0.3 });
+    },
+    // the tick of a German pedestrian light, a bit brighter on green
+    tick(vol, go) { tone(go ? 1250 : 950, 0.025, { type: 'square', vol: vol * 0.35 }); noise(0.02, { vol, freq: 2600, q: 3 }); },
+    press() { noise(0.03, { vol: 0.12, freq: 1800, q: 2 }); tone(1500, 0.06, { type: 'square', vol: 0.03, delay: 0.02 }); },
+    hello() { tone(196, 0.22, { type: 'triangle', vol: 0.16, slide: 1.25, attack: 0.03 }); tone(247, 0.3, { type: 'triangle', vol: 0.16, slide: 0.85, attack: 0.03, delay: 0.24 }); },
     chirp() { [0, 0.18, 0.3].forEach(d => tone(2300 + Math.random() * 600, 0.12, { vol: 0.05, slide: 1.35, delay: d })); },
     sparkle() { [1568, 2093, 2637, 3136].forEach((f, i) => tone(f, 0.35, { vol: 0.045, delay: i * 0.06 })); },
     setMood(m) { if (m !== mood) { mood = m; moodChanged = true; } },

@@ -404,3 +404,105 @@ function makeMirror() {
     P(g, 8, 0, wl); R(g, 7, 1, 3, 1, wl); disc(g, 8, 0, 1, '#f28bb0');
   });
 }
+
+// ---- Crossroads: pedestrian lights and the building site --------------------
+const PED_STAND = ['..#..', '.###.', '.###.', '.###.', '.#.#.', '.#.#.'];
+const PED_WALK = ['..#..', '.###.', '#.#.#', '..#..', '.#.#.', '#...#'];
+
+// Pedestrian light: signal head on a pole with the yellow push-button box.
+// The lit lamps are drawn live on top of this (see scenes.js).
+function makePedLight() {
+  return sprite(12, 50, 5, 49, g => {
+    const m = '#34363e', mh = '#50535c';
+    R(g, 4, 14, 2, 33, '#7a7f88'); R(g, 4, 14, 1, 33, '#a3a8b0');
+    R(g, 3, 46, 4, 4, m); R(g, 3, 46, 4, 1, mh);
+    R(g, 1, 0, 7, 15, m); R(g, 1, 0, 7, 1, mh); R(g, 1, 7, 7, 1, mh);
+    R(g, 2, 1, 5, 6, '#121216'); R(g, 2, 8, 5, 6, '#121216');
+    bitmap(g, PED_STAND, 2, 1, '#3a1a18'); bitmap(g, PED_WALK, 2, 8, '#18301f');
+    R(g, 6, 24, 5, 8, '#f5c518'); R(g, 10, 24, 1, 8, '#c99a0c'); R(g, 6, 24, 5, 1, '#ffe36a');
+    R(g, 7, 25, 3, 2, '#2b2b30'); R(g, 7, 28, 3, 2, '#4a4d55'); P(g, 7, 28, '#7a7f88');
+  });
+}
+
+// Red and white barrier board on two feet, with a warning lamp on the left.
+function makeBarrier(len) {
+  return sprite(len, 16, 0, 15, g => {
+    const legs = [2, len - 4];
+    for (let x = 34; x < len - 20; x += 32) legs.push(x);
+    for (const x of legs) { R(g, x, 8, 2, 6, '#e8e4dc'); R(g, x - 2, 14, 6, 2, '#3a3540'); }
+    for (let y = 4; y < 8; y++) for (let x = 0; x < len; x++) P(g, x, y, ((x + y) >> 2) & 1 ? '#f4f1ea' : '#d8322c');
+    R(g, 0, 7, len, 1, 'rgba(0,0,0,0.2)');
+    R(g, 0, 0, 4, 4, '#2b2b30'); R(g, 1, 1, 2, 2, '#8a6a1a');
+  });
+}
+
+function makeCone() {
+  return sprite(9, 12, 4, 11, g => {
+    R(g, 0, 10, 9, 2, '#d0561a'); R(g, 0, 11, 9, 1, '#a8420e');
+    poly(g, [[3.5, 0], [5.5, 0], [7.5, 10], [1.5, 10]], '#f47a2a');
+    poly(g, [[2.7, 4], [6.3, 4], [6.7, 6], [2.3, 6]], '#f4f1ea');
+    P(g, 3, 2, '#ffa864'); P(g, 3, 7, '#ffa864'); P(g, 6, 8, '#c85a18');
+  });
+}
+
+// "Men at work" sign on a weighted stand.
+function makeWorkSign() {
+  return sprite(17, 27, 8, 26, g => {
+    R(g, 7, 13, 2, 11, '#8a8f98'); R(g, 7, 13, 1, 11, '#b0b5bd');
+    R(g, 2, 23, 13, 3, '#d8322c'); R(g, 2, 23, 13, 1, '#f06a5a');
+    poly(g, [[8.5, 0], [16.5, 14], [0.5, 14]], '#d8322c');
+    poly(g, [[8.5, 3.5], [13.5, 12], [3.5, 12]], '#f4f2ea');
+    const k = '#1d130f';
+    P(g, 7, 6, k); R(g, 7, 7, 1, 3, k); P(g, 6, 10, k); P(g, 8, 10, k); line(g, 8, 8, 10, 10, k);
+    R(g, 9, 11, 3, 1, k); P(g, 10, 10, k);
+  });
+}
+
+// Heap of sand with a shovel stuck in it.
+function makeSandPile() {
+  return sprite(30, 18, 15, 17, g => {
+    line(g, 21, 1, 18, 9, '#9a6a40'); R(g, 19, 0, 5, 1, '#6f4a2a');
+    oval(g, 15, 13, 14, 4, '#a67c4c'); oval(g, 14, 11, 11, 5, '#c29a62'); oval(g, 13, 9, 7, 4, '#d4ae76');
+    const r = rng(77);
+    for (let i = 0; i < 40; i++) P(g, 3 + (r() * 24 | 0), 7 + (r() * 9 | 0), pick(r, ['#b38956', '#e0c08a', '#9a7244']));
+    oval(g, 15, 16, 13, 1, '#8f6a3e');
+  });
+}
+
+// Construction worker with helmet, ear defenders and a jackhammer.
+// pose 0 / 1: hammering (1 is the recoil), 'wave': waving hello.
+function makeWorker(pose) {
+  return sprite(24, 39, 12, 38, g => {
+    g.translate(0, 1);
+    const o = pose === 1 ? -1 : 0;
+    const skin = '#eab48e', skinSh = '#d29873', vest = '#ff7a1a', vestSh = '#d65e0c', refl = '#f4f2dc';
+    const shirt = '#3d6aa8', pants = '#34507c', pantsSh = '#27405f', boot = '#5a3a22';
+    const helm = '#f5c518', helmSh = '#c99a0c', helmHi = '#ffe36a', steel = '#a3a8b0', steelSh = '#6c727a', dark = '#2b2b30';
+    // legs + work boots
+    R(g, 7, 26, 4, 9, pants); R(g, 13, 26, 4, 9, pants); R(g, 10, 26, 1, 9, pantsSh); R(g, 16, 26, 1, 9, pantsSh);
+    R(g, 6, 35, 5, 3, boot); R(g, 13, 35, 5, 3, boot); R(g, 6, 35, 5, 1, '#7a5234'); R(g, 13, 35, 5, 1, '#7a5234');
+    // orange hi-vis vest with reflective stripes over a blue shirt
+    R(g, 6, 13 + o, 12, 13, vest); R(g, 16, 13 + o, 2, 13, vestSh);
+    R(g, 10, 13 + o, 4, 2, shirt); R(g, 11, 15 + o, 2, 1, shirt);
+    R(g, 6, 19 + o, 12, 1, refl); R(g, 6, 23 + o, 12, 1, refl);
+    R(g, 6, 25 + o, 12, 1, '#4a3222');
+    // face with a big moustache, red ear defenders, yellow helmet
+    R(g, 8, 6 + o, 8, 7, skin); R(g, 15, 7 + o, 1, 5, skinSh);
+    P(g, 10, 8 + o, '#1d130f'); P(g, 13, 8 + o, '#1d130f');
+    P(g, 9, 10 + o, '#f0a08a'); P(g, 14, 10 + o, '#f0a08a');
+    R(g, 10, 10 + o, 4, 1, '#6b4430');
+    if (pose === 'wave') R(g, 11, 11 + o, 2, 1, '#8a3a32');
+    R(g, 6, 6 + o, 2, 5, '#d8322c'); R(g, 16, 6 + o, 2, 5, '#d8322c'); P(g, 6, 6 + o, '#f06a5a'); P(g, 16, 6 + o, '#f06a5a');
+    R(g, 8, 0 + o, 8, 1, helm); R(g, 7, 1 + o, 10, 4, helm); R(g, 5, 5 + o, 14, 1, helmSh);
+    R(g, 11, 0 + o, 2, 5, helmSh); R(g, 8, 1 + o, 2, 2, helmHi);
+    // the jackhammer, standing in front of him
+    R(g, 11, 27 + o, 2, 11, steelSh);
+    R(g, 9, 18 + o, 6, 10, steel); R(g, 13, 18 + o, 2, 10, steelSh); R(g, 9, 18 + o, 1, 10, '#c9ced4');
+    R(g, 8, 17 + o, 8, 3, '#e0621a'); R(g, 8, 17 + o, 8, 1, '#f4904a');
+    R(g, 4, 16 + o, 16, 2, dark);
+    // arms: both hands on the grips, or one waving
+    R(g, 4, 13 + o, 2, 4, shirt); R(g, 4, 16 + o, 3, 2, skin);
+    if (pose === 'wave') { R(g, 18, 7, 2, 7, shirt); R(g, 18, 4, 2, 3, skin); }
+    else { R(g, 18, 13 + o, 2, 4, shirt); R(g, 17, 16 + o, 3, 2, skin); }
+  });
+}

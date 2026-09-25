@@ -56,7 +56,18 @@ function pigtail(g, x, y, band, len = 8) {
   R(g, x, y, 3, 2, band); P(g, x, y, shade(band, 0.35)); P(g, x + 2, y + 1, shade(band, -0.25));
 }
 
-function linaFront(g, s, o, riding, blink) {
+// Both hands pressed over her ears, elbows out (front and back view).
+function earArms(g, o) {
+  const c = LC;
+  for (const m of [false, true]) {
+    const X = (x, w = 1) => m ? 19 - x - (w - 1) : x;
+    R(g, X(3, 2), 13 + o, 2, 3, c.sw);
+    R(g, X(1, 2), 10 + o, 2, 4, c.sw); P(g, X(1), 12 + o, c.swDot);
+    R(g, X(2, 3), 8 + o, 3, 3, c.skin); P(g, X(2), 10 + o, c.skinSh);
+  }
+}
+
+function linaFront(g, s, o, riding, blink, ears) {
   const c = LC;
   if (HAIR === 'loose') { // full hair falling behind the shoulders
     R(g, 3, 6 + o, 14, 13, c.hair); R(g, 4, 19 + o, 12, 1, c.hair);
@@ -65,6 +76,15 @@ function linaFront(g, s, o, riding, blink) {
   }
   if (!riding) { frontLeg(g, 6, s > 0 ? 1 : 0); frontLeg(g, 11, s < 0 ? 1 : 0); }
   vestFront(g, o);
+  if (ears) {
+    linaHead(g, o, false);
+    // eyes squeezed shut: > <
+    R(g, 6, 8 + o, 2, 2, c.skin); R(g, 12, 8 + o, 2, 2, c.skin);
+    P(g, 6, 8 + o, c.eye); P(g, 7, 9 + o, c.eye); P(g, 6, 10 + o, c.eye);
+    P(g, 13, 8 + o, c.eye); P(g, 12, 9 + o, c.eye); P(g, 13, 10 + o, c.eye);
+    earArms(g, o);
+    return;
+  }
   frontArm(g, 3, 15 + o, riding ? 0 : (s < 0 ? 1 : 0));
   frontArm(g, 15, 15 + o, riding ? 0 : (s > 0 ? 1 : 0));
   linaHead(g, o, blink);
@@ -97,14 +117,16 @@ function linaHead(g, o, blink) {
 }
 
 // ---- Lina, back view -------------------------------------------------------
-function linaBack(g, s, o, riding) {
+function linaBack(g, s, o, riding, ears) {
   const c = LC;
   if (!riding) { frontLeg(g, 6, s > 0 ? 1 : 0); frontLeg(g, 11, s < 0 ? 1 : 0); }
   R(g, 5, 14 + o, 10, 9, c.vest); R(g, 13, 14 + o, 2, 9, c.vestSh);
   R(g, 5, 18 + o, 10, 1, c.vestSh); R(g, 5, 21 + o, 10, 1, c.vestSh);
   R(g, 5, 13 + o, 10, 2, c.fur); R(g, 5, 14 + o, 10, 1, c.furSh);
-  frontArm(g, 3, 15 + o, riding ? 0 : (s > 0 ? 1 : 0));
-  frontArm(g, 15, 15 + o, riding ? 0 : (s < 0 ? 1 : 0));
+  if (!ears) {
+    frontArm(g, 3, 15 + o, riding ? 0 : (s > 0 ? 1 : 0));
+    frontArm(g, 15, 15 + o, riding ? 0 : (s < 0 ? 1 : 0));
+  }
   R(g, 6, 0 + o, 8, 1, c.hair); R(g, 4, 1 + o, 12, 1, c.hair); R(g, 3, 2 + o, 14, 12, c.hair);
   R(g, 6, 2 + o, 5, 1, c.hairHi); R(g, 5, 3 + o, 2, 1, c.hairHi); R(g, 12, 2 + o, 2, 1, c.hairHi);
   if (HAIR === 'loose') {
@@ -118,6 +140,7 @@ function linaBack(g, s, o, riding) {
     R(g, 6, 6 + o, 1, 6, c.hairDk); R(g, 13, 6 + o, 1, 6, c.hairDk);
     pigtail(g, 1, 9 + o, SCRUNCHIE.mint); pigtail(g, 16, 9 + o, SCRUNCHIE.lilac);
   }
+  if (ears) earArms(g, o);
 }
 
 // ---- Lina, side view (facing right) ----------------------------------------
@@ -126,7 +149,7 @@ function sideLeg(g, x, back) {
   R(g, x, 26, 4, 2, back ? LC.shoeDk : LC.shoe);
   if (!back) { P(g, x + 1, 23, LC.dot); R(g, x + 1, 26, 3, 1, LC.shoeDk); }
 }
-function linaSide(g, s, o, riding, blink) {
+function linaSide(g, s, o, riding, blink, ears) {
   const c = LC;
   if (HAIR === 'loose') {
     R(g, 3, 5 + o, 8, 14, c.hair); R(g, 4, 19 + o, 6, 1, c.hair); P(g, 4, 20 + o, c.hair); P(g, 8, 20 + o, c.hair);
@@ -146,20 +169,24 @@ function linaSide(g, s, o, riding, blink) {
   if (blink) R(g, 12, 9 + o, 2, 1, c.eye);
   else { R(g, 12, 8 + o, 2, 2, c.eye); P(g, 13, 8 + o, c.eyeHi); }
   P(g, 12, 10 + o, c.blush); P(g, 14, 11 + o, c.mouth);
-  if (!riding) {
+  if (ears) {
+    R(g, 12, 8 + o, 2, 2, c.skin); P(g, 13, 8 + o, c.eye); P(g, 12, 9 + o, c.eye); P(g, 13, 10 + o, c.eye);
+    R(g, 10, 12 + o, 2, 4, c.sw); R(g, 10, 10 + o, 2, 2, c.sw); P(g, 11, 13 + o, c.swDot);
+    R(g, 7, 8 + o, 3, 3, c.skin); P(g, 7, 10 + o, c.skinSh);
+  } else if (!riding) {
     R(g, 9 - s, 15 + o, 2, 5, c.sw); R(g, 10 - s, 15 + o, 1, 5, c.swSh);
     P(g, 9 - s, 16 + o, c.swDot); P(g, 10 - s, 18 + o, c.swDot);
     R(g, 9 - s, 20 + o, 2, 2, c.skin);
   }
 }
 
-function linaWalk(dir, f, blink) {
+function linaWalk(dir, f, blink, ears = false) {
   const s = [0, 1, 0, -1][f];
   const o = s !== 0 ? 1 : 0;
   return sprite(20, 29, 10, 28, g => {
-    if (dir === 'down') linaFront(g, s, o, false, blink);
-    else if (dir === 'up') linaBack(g, s, o, false);
-    else linaSide(g, s, o, false, blink);
+    if (dir === 'down') linaFront(g, s, o, false, blink, ears);
+    else if (dir === 'up') linaBack(g, s, o, false, ears);
+    else linaSide(g, s, o, false, blink, ears);
   });
 }
 
@@ -344,15 +371,17 @@ function makeIcons() {
 // ---- Build everything once ------------------------------------------------
 function buildLinaSet(style) {
   HAIR = style;
-  const S = { lina: {}, blink: {}, rider: {} };
+  const S = { lina: {}, blink: {}, rider: {}, ears: {} };
   for (const dir of ['down', 'up', 'right']) {
     S.lina[dir] = [0, 1, 2, 3].map(f => linaWalk(dir, f, false));
+    S.ears[dir] = [0, 1, 2, 3].map(f => linaWalk(dir, f, false, true));
     S.rider[dir] = [0, 1, 2, 3].map(f => makeRider(dir, f));
   }
   S.blink.down = linaWalk('down', 0, true);
   S.blink.right = linaWalk('right', 0, true);
   S.blink.up = S.lina.up[0];
   S.lina.left = S.lina.right.map(mirrorSprite);
+  S.ears.left = S.ears.right.map(mirrorSprite);
   S.rider.left = S.rider.right.map(mirrorSprite);
   S.blink.left = mirrorSprite(S.blink.right);
   // head on the pillow, eyes closed (for sleeping in bed)
