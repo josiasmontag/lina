@@ -395,6 +395,14 @@ function buildLinaSet(style) {
     R(g, 6, 22, 3, 3, LC.pants); R(g, 11, 22, 3, 3, LC.pants);
     R(g, 6, 25, 3, 2, LC.shoe); R(g, 11, 25, 3, 2, LC.shoe);
   });
+  // Lina sitting on the slide, side view, legs out and an arm up: wheee!
+  S.slideSit = sprite(24, 29, 9, 22, g => {
+    linaSide(g, 0, 0, true, false);
+    R(g, 9, 20, 9, 3, LC.pants); R(g, 9, 22, 9, 1, LC.pantsSh); P(g, 12, 21, LC.dot);
+    R(g, 17, 18, 3, 5, LC.shoe); R(g, 17, 22, 3, 1, LC.shoeDk);
+    R(g, 10, 7, 2, 8, LC.sw); P(g, 10, 9, LC.swDot); P(g, 11, 12, LC.swDot); R(g, 10, 5, 2, 2, LC.skin);
+    R(g, 13, 11, 2, 1, LC.mouth);
+  });
   return S;
 }
 

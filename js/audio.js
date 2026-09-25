@@ -289,6 +289,8 @@ const Sound = (() => {
     tick(vol, go) { tone(go ? 1250 : 950, 0.025, { type: 'square', vol: vol * 0.35 }); noise(0.02, { vol, freq: 2600, q: 3 }); },
     press() { noise(0.03, { vol: 0.12, freq: 1800, q: 2 }); tone(1500, 0.06, { type: 'square', vol: 0.03, delay: 0.02 }); },
     hello() { tone(196, 0.22, { type: 'triangle', vol: 0.16, slide: 1.25, attack: 0.03 }); tone(247, 0.3, { type: 'triangle', vol: 0.16, slide: 0.85, attack: 0.03, delay: 0.24 }); },
+    // slide whistle going down
+    wheee() { tone(1400, 0.7, { vol: 0.09, slide: 0.3, attack: 0.04, vibrato: 0.02 }); tone(700, 0.7, { type: 'triangle', vol: 0.05, slide: 0.3, attack: 0.04 }); },
     yay() { playClip('yay'); },
     chirp() { [0, 0.18, 0.3].forEach(d => tone(2300 + Math.random() * 600, 0.12, { vol: 0.05, slide: 1.35, delay: d })); },
     sparkle() { [1568, 2093, 2637, 3136].forEach((f, i) => tone(f, 0.35, { vol: 0.045, delay: i * 0.06 })); },

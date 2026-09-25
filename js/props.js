@@ -235,6 +235,49 @@ function makeSwingFrame() {
   });
 }
 
+// Slide seen from the side: ladder on the left, platform, chute down to the right.
+// Local origin (2, 46) is the foot of the ladder; SLIDE_PATH is the chute
+// surface relative to that point.
+const SLIDE_TOP = [16, -34], SLIDE_END = [54, -4], SLIDE_OUT = [62, -4];
+function makeSlide() {
+  return sprite(68, 50, 2, 46, g => {
+    const X = x => 2 + x, Y = y => 46 + y;
+    const steel = '#9aa0a8', steelSh = '#6c727a', steelHi = '#c9ced4';
+    // back support legs
+    line(g, X(14), Y(-34), X(14), Y(0), steelSh, 2); line(g, X(34), Y(-18), X(36), Y(0), steelSh, 2);
+    // ladder
+    for (const x of [0, 10]) { R(g, X(x), Y(-40), 2, 40, steel); R(g, X(x), Y(-40), 1, 40, steelHi); }
+    for (let y = -4; y > -36; y -= 5) R(g, X(2), Y(y), 8, 1, steelSh);
+    // platform with a little roof-less railing
+    R(g, X(-1), Y(-35), 18, 3, '#4a8ad0'); R(g, X(-1), Y(-35), 18, 1, '#7ab8ff'); R(g, X(-1), Y(-33), 18, 1, '#2f5f96');
+    R(g, X(13), Y(-44), 2, 9, steel); R(g, X(0), Y(-44), 15, 2, steel); R(g, X(0), Y(-44), 15, 1, steelHi);
+    // chute: bright yellow with a red rim, curving flat at the end
+    const pts = [];
+    for (let i = 0; i <= 40; i++) {
+      const k = i / 40, x = SLIDE_TOP[0] + (SLIDE_END[0] - SLIDE_TOP[0]) * k;
+      const e = k < 0.8 ? k / 0.8 * 0.9 : 0.9 + (1 - Math.pow(1 - (k - 0.8) / 0.2, 2)) * 0.1;
+      pts.push([x, SLIDE_TOP[1] + (SLIDE_END[1] - SLIDE_TOP[1]) * e]);
+    }
+    pts.push(SLIDE_OUT);
+    for (let i = 0; i + 1 < pts.length; i++) {
+      const [x0, y0] = pts[i], [x1, y1] = pts[i + 1];
+      line(g, X(x0), Y(y0) + 1, X(x1), Y(y1) + 1, '#e0b020', 3);
+      line(g, X(x0), Y(y0), X(x1), Y(y1), '#ffd84a');
+      line(g, X(x0), Y(y0) - 2, X(x1), Y(y1) - 2, '#e5484d');
+      line(g, X(x0), Y(y0) + 3, X(x1), Y(y1) + 3, '#b8322c');
+    }
+    // front legs
+    R(g, X(58), Y(-2), 2, 2, steelSh);
+  });
+}
+// Height of the chute surface above the ground at slide x (for Lina's ride).
+function slideSurface(x) {
+  if (x >= SLIDE_END[0]) return SLIDE_END[1];
+  const k = (x - SLIDE_TOP[0]) / (SLIDE_END[0] - SLIDE_TOP[0]);
+  const e = k < 0.8 ? k / 0.8 * 0.9 : 0.9 + (1 - Math.pow(1 - (k - 0.8) / 0.2, 2)) * 0.1;
+  return SLIDE_TOP[1] + (SLIDE_END[1] - SLIDE_TOP[1]) * e;
+}
+
 function makeMailbox() {
   return sprite(10, 20, 5, 19, g => {
     R(g, 4, 9, 2, 11, '#5e3b24');

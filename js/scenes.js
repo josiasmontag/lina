@@ -274,6 +274,12 @@ function buildOutdoor() {
   reserved.push([q.x, q.y, q.rx + 10]);
   add(obj(q.x - 40, q.y - 8, makeClimbRock(), { shadow: [22, 5], solid: { x: q.x - 62, y: q.y - 20, w: 44, h: 12 } }));
   add(obj(q.x + 50, q.y - 30, makePosts(), { shadow: [16, 3], solid: { x: q.x + 34, y: q.y - 34, w: 32, h: 4 } }));
+  const sx = q.x + 22, sy = q.y + 45;
+  add(obj(sx, sy, makeSlide(), {
+    shadowFn: ctx => { drawShadow(ctx, sx + 5, sy, 8, 2); drawShadow(ctx, sx + 42, sy, 20, 2); },
+    solid: { x: sx - 2, y: sy - 3, w: 66, h: 3 }, ix: sx + 5, iy: sy + 2, top: sy - 48,
+    interact: o => startSlide(o),
+  }));
   const bench = makeBench();
   add(obj(q.x + 20, q.y + q.ry + 24, bench, { shadow: [15, 2], solid: { x: q.x + 4, y: q.y + q.ry + 18, w: 32, h: 6 } }));
   add(obj(OUT.cross + 60, 400, bench, { shadow: [15, 2], solid: { x: OUT.cross + 44, y: 394, w: 32, h: 6 } }));

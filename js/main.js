@@ -12,7 +12,7 @@ const G = {
   particles: [], trans: null, target: null, night: 0, shake: 0, camOff: { x: 0, y: -14 },
 };
 const Pl = { x: 0, y: 0, dir: 'down', vx: 0, vy: 0, riding: false, dist: 0, frame: 0, moving: false,
-  swing: null, sleep: null, blink: 0, blinkT: 2.5, jump: 0, earsT: 0, ice: null };
+  swing: null, slide: null, sleep: null, blink: 0, blinkT: 2.5, jump: 0, earsT: 0, ice: null };
 const bike = { scene: 'out', x: 0, y: 0, face: 'right' };
 const cat = { x: 600, y: 520, tx: 600, ty: 520, state: 'sit', t: 2, face: 'right', dist: 0, follow: 0 };
 const butterflies = [];
@@ -201,6 +201,35 @@ function leaveSwing() {
   Pl.x = o.seatX; Pl.y = o.y + 10; Pl.dir = 'down';
 }
 
+// ---------------------------------------------------------------- slide ----
+// Climb the ladder, sit down on top, whoosh down the chute, hop off.
+const SLIDE_T = { climb: 1.0, sit: 1.4, ride: 2.0 };
+function startSlide(o) {
+  Pl.slide = { obj: o, t: 0, z: 0, spr: SPR.lina.up[0], step: 0 };
+  Pl.x = o.x + 5; Pl.y = o.y + 1; Pl.dir = 'up'; Pl.vx = Pl.vy = 0;
+}
+function updateSlide(dt) {
+  const s = Pl.slide, o = s.obj, t0 = s.t;
+  s.t += dt;
+  if (s.t < SLIDE_T.climb) {
+    const f = Math.floor(s.t * 8) % 4;
+    if (f !== s.step && f % 2) Sound.step('wood');
+    s.step = f; s.spr = SPR.lina.up[f]; s.z = 34 * s.t / SLIDE_T.climb;
+  } else if (s.t < SLIDE_T.sit) {
+    Pl.x = o.x + 12; s.z = 34; s.spr = SPR.slideSit;
+  } else if (s.t < SLIDE_T.ride) {
+    if (t0 < SLIDE_T.sit) Sound.wheee();
+    const k = (s.t - SLIDE_T.sit) / (SLIDE_T.ride - SLIDE_T.sit), lx = 14 + (SLIDE_OUT[0] - 14) * k * k;
+    Pl.x = o.x + lx; s.z = -slideSurface(lx);
+  } else {
+    Pl.slide = null;
+    Pl.x = o.x + SLIDE_OUT[0] + 8; Pl.y = o.y + 3; Pl.dir = 'right';
+    if (blocked(G.scene, Pl.x, Pl.y)) Pl.y += 8;
+    Pl.jump = 0.42; Sound.boing();
+    burst(Pl.x, Pl.y, 'dust', 4); burst(Pl.x, Pl.y - 30, 'star', 3);
+  }
+}
+
 // ---------------------------------------------------------------- sleep ----
 function startSleep(bed) {
   Pl.sleep = { bed, t: 0, z: 0.6, song: 0 };
@@ -240,7 +269,7 @@ function drawSleeper(b) {
 
 // -------------------------------------------------------------- targets ----
 function findTarget() {
-  if (Pl.riding || Pl.swing || Pl.sleep || G.trans) return null;
+  if (Pl.riding || Pl.swing || Pl.slide || Pl.sleep || G.trans) return null;
   const [dx, dy] = DIRV[Pl.dir];
   const fx = Pl.x + dx * 10, fy = Pl.y - 3 + dy * 8;
   let best = null, bd = 24;
@@ -294,6 +323,7 @@ function updatePlayer(dt) {
   const mag = Math.hypot(mv.x, mv.y);
 
   if (Pl.sleep) { updateSleep(dt, mag); return; }
+  if (Pl.slide) { updateSlide(dt); return; }
   if (Pl.swing) {
     Pl.swing.timer += dt;
     const o = Pl.swing.obj;
@@ -478,6 +508,7 @@ function snapCamera() { updateCamera(0, true); }
 // -------------------------------------------------------------- render -----
 function drawPlayer() {
   if (Pl.swing || Pl.sleep) return;
+  if (Pl.slide) { drawSprite(ctx, Pl.slide.spr, Pl.x, Pl.y - 1 - Pl.slide.z); return; }
   const z = Pl.jump > 0 ? Math.sin(Math.PI * (1 - Pl.jump / 0.42)) * 7 : 0;
   let s;
   if (Pl.riding) s = SPR.rider[Pl.dir][Pl.frame];
