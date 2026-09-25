@@ -23,15 +23,10 @@ function resize() {
   // The canvas runs at full device resolution; one game pixel = WS device pixels.
   // It fills the screen via CSS and we measure it, rather than trusting
   // innerHeight, which iOS reports too small at launch and after rotating.
+  // iOS home screen apps start scrolled up under the status bar; undo that.
+  if (scrollX || scrollY) scrollTo(0, 0);
   const dpr = window.devicePixelRatio || 1;
-  cv.style.width = cv.style.height = '';
-  let w = cv.clientWidth || innerWidth, h = cv.clientHeight || innerHeight;
-  if (navigator.standalone) { // home screen app: always the whole screen
-    const land = w > h;
-    w = Math.max(w, land ? screen.height : screen.width);
-    h = Math.max(h, land ? screen.width : screen.height);
-    cv.style.width = w + 'px'; cv.style.height = h + 'px';
-  }
+  const w = cv.clientWidth || innerWidth, h = cv.clientHeight || innerHeight;
   // Fit about 235 game pixels vertically, but keep phones in portrait wide enough.
   SCALE = Math.max(2, Math.round(Math.min(h / 235, w / 300)));
   WS = Math.max(2, Math.round(SCALE * dpr));

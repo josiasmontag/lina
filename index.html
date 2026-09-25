@@ -17,12 +17,16 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&display=swap" rel="stylesheet">
 <style>
+  /* No position: fixed anywhere. iOS home screen apps lay the page out shorter
+     than the screen and draw fixed elements away from where they get touched.
+     Instead the body is exactly one dynamic viewport tall and everything is
+     positioned inside it. */
   html, body { margin: 0; height: 100%; background: #120d12; overflow: hidden; }
-  body { position: fixed; inset: 0; touch-action: none; -webkit-user-select: none; user-select: none;
+  body { position: relative; height: 100vh; height: 100dvh; touch-action: none; -webkit-user-select: none; user-select: none;
     -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
-  canvas { display: block; position: fixed; left: 0; top: 0; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
+  canvas { display: block; position: absolute; left: 0; top: 0; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
   #title {
-    position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 13vh; box-sizing: border-box;
+    position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 13vh; box-sizing: border-box;
     font-family: 'Pixelify Sans', monospace; color: #fff; pointer-events: none;
     background: radial-gradient(ellipse at center, rgba(25,12,25,0.1), rgba(25,12,25,0.65));
     transition: opacity .8s;
@@ -34,7 +38,7 @@
   #title p { font-size: clamp(16px, 2.4vw, 28px); margin: .6em 0 0; animation: blink 1.4s infinite; text-shadow: 0 2px 0 rgba(0,0,0,.6); }
   @keyframes blink { 50% { opacity: .35; } }
   #help {
-    position: fixed; left: 16px; bottom: 16px; font-family: 'Pixelify Sans', monospace; color: #fdf6e8;
+    position: absolute; left: 16px; bottom: 16px; font-family: 'Pixelify Sans', monospace; color: #fdf6e8;
     background: rgba(30,20,28,.78); border: 2px solid #6b4a3a; border-radius: 6px; padding: 10px 14px;
     font-size: 15px; line-height: 1.55; transition: opacity .6s; opacity: 0; pointer-events: none;
   }
@@ -44,7 +48,7 @@
   body.touch .touch-only { display: inline; }
 
   /* on-screen controls, shown once the game is touched */
-  #touch { position: fixed; inset: 0; touch-action: none; display: none; }
+  #touch { position: absolute; inset: 0; touch-action: none; display: none; }
   body.touch #touch { display: block; }
   #touch .stick, #touch .knob {
     position: absolute; left: 0; top: 0; border-radius: 50%; pointer-events: none; opacity: 0; transition: opacity .15s;
