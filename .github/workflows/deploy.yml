@@ -28,7 +28,7 @@ jobs:
           VERSION: ${{ github.sha }}
         run: |
           mkdir dist
-          cp -R index.html js CNAME dist/
+          cp -R index.html manifest.webmanifest js icons CNAME dist/
           # Stamp the deployed version into the page and bust the script cache.
           sed -i "s|<meta name=\"version\" content=\"dev\">|<meta name=\"version\" content=\"$VERSION\">|" dist/index.html
           sed -i "s|src=\"js/\([a-z]*\)\.js\"|src=\"js/\1.js?v=$VERSION\"|g" dist/index.html

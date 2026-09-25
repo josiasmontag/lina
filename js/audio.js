@@ -12,6 +12,8 @@ const Sound = (() => {
     if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
+    // play through the iPhone's silent switch, like a game should
+    if (navigator.audioSession) try { navigator.audioSession.type = 'playback'; } catch (e) { /* unsupported */ }
     ac = new AC();
     master = ac.createGain(); master.gain.value = 0.6; master.connect(ac.destination);
     // music bus: warm lowpass + a soft echo for a dreamy feel

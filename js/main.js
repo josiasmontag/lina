@@ -22,7 +22,8 @@ const DIRV = { down: [0, 1], up: [0, -1], left: [-1, 0], right: [1, 0] };
 function resize() {
   // The canvas runs at full device resolution; one game pixel = WS device pixels.
   const dpr = window.devicePixelRatio || 1;
-  SCALE = Math.max(2, Math.round(innerHeight / 235));
+  // Fit about 235 game pixels vertically, but keep phones in portrait wide enough.
+  SCALE = Math.max(2, Math.round(Math.min(innerHeight / 235, innerWidth / 300)));
   WS = Math.max(2, Math.round(SCALE * dpr));
   cv.width = Math.round(innerWidth * dpr); cv.height = Math.round(innerHeight * dpr);
   cv.style.width = innerWidth + 'px'; cv.style.height = innerHeight + 'px';
@@ -67,6 +68,9 @@ function init() {
   }
   snapCamera();
   addEventListener('pointerdown', () => { Input.markAny(); });
+  // iOS only lets audio start inside a real touch/click handler, and suspends
+  // it again when the app goes to the background.
+  for (const ev of ['pointerup', 'touchend', 'keydown']) addEventListener(ev, () => { if (G.started) Sound.init(); });
   requestAnimationFrame(loop);
 }
 
@@ -537,7 +541,7 @@ function render() {
   // interaction prompt
   if (G.target && G.started) {
     const t = G.target, bob = Math.round(Math.sin(G.t * 5) * 1.5);
-    drawSprite(ctx, Input.device === 'pad' ? SPR.icon.pad : SPR.icon.key, t.ix ?? t.x, targetTop(t) - 4 + bob);
+    drawSprite(ctx, Input.device === 'keyboard' ? SPR.icon.key : SPR.icon.pad, t.ix ?? t.x, targetTop(t) - 4 + bob);
   }
 
   // colour grading, vignette, fades (screen space, in game pixels)
@@ -594,7 +598,7 @@ function tick(dt) {
   if (!G.started) {
     if (Input.any) startGame();
   } else {
-    if (Input.pressed('music')) Sound.toggleMusic();
+    if (Input.pressed('music')) document.body.classList.toggle('muted', !Sound.toggleMusic());
     if (Input.pressed('help')) { const h = document.getElementById('help'); h.style.opacity = h.style.opacity === '1' ? 0 : 1; }
     if (!G.trans) updatePlayer(dt);
   }

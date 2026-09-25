@@ -1,5 +1,5 @@
 'use strict';
-// Keyboard + gamepad (Xbox controller, standard mapping) input.
+// Keyboard, gamepad (Xbox controller, standard mapping) and touch input.
 
 const Input = (() => {
   const down = new Set();
@@ -7,7 +7,7 @@ const Input = (() => {
   const padPressed = new Set();
   let padPrev = [];
   let pad = null;
-  let device = 'keyboard';
+  let device = matchMedia('(pointer: coarse)').matches ? 'touch' : 'keyboard';
   let any = false;
 
   const KEYS = {
@@ -24,9 +24,64 @@ const Input = (() => {
     if (!e.repeat) { pressedKeys.add(e.code); any = true; }
     down.add(e.code);
     device = 'keyboard';
+    document.body.classList.remove('touch');
   });
   addEventListener('keyup', e => down.delete(e.code));
   addEventListener('blur', () => down.clear());
+
+  // Touch: a floating stick wherever the left thumb lands, plus Ⓐ / Ⓑ buttons.
+  const touch = { id: null, ox: 0, oy: 0, x: 0, y: 0 };
+  const touchPressed = new Set();
+  const STICK_R = 46;
+  const ui = document.getElementById('touch');
+  const base = ui && ui.querySelector('.stick'), knob = ui && ui.querySelector('.knob');
+
+  function capture(el, e) { try { el.setPointerCapture(e.pointerId); } catch (err) { /* pointer already gone */ } }
+  function showTouch() {
+    if (device === 'touch') return;
+    device = 'touch';
+    document.body.classList.add('touch');
+  }
+  if (ui) {
+    ui.addEventListener('pointerdown', e => {
+      if (e.pointerType === 'mouse') return;
+      showTouch(); any = true;
+      const btn = e.target.closest('[data-action]');
+      if (btn) {
+        touchPressed.add(btn.dataset.action);
+        btn.classList.add('down');
+        capture(btn, e);
+        return;
+      }
+      if (touch.id !== null) return;
+      touch.id = e.pointerId; touch.ox = touch.x = e.clientX; touch.oy = touch.y = e.clientY;
+      capture(ui, e);
+      base.style.transform = `translate(${touch.ox}px, ${touch.oy}px)`;
+      knob.style.transform = `translate(${touch.ox}px, ${touch.oy}px)`;
+      ui.classList.add('active');
+    });
+    ui.addEventListener('pointermove', e => {
+      if (e.pointerId !== touch.id) return;
+      let dx = e.clientX - touch.ox, dy = e.clientY - touch.oy;
+      const m = Math.hypot(dx, dy);
+      // drag past the rim and the stick follows the thumb
+      if (m > STICK_R) {
+        const k = (m - STICK_R) / m;
+        touch.ox += dx * k; touch.oy += dy * k; dx -= dx * k; dy -= dy * k;
+        base.style.transform = `translate(${touch.ox}px, ${touch.oy}px)`;
+      }
+      touch.x = touch.ox + dx; touch.y = touch.oy + dy;
+      knob.style.transform = `translate(${touch.x}px, ${touch.y}px)`;
+    });
+    const end = e => {
+      const btn = e.target.closest && e.target.closest('[data-action]');
+      if (btn) btn.classList.remove('down');
+      if (e.pointerId === touch.id) { touch.id = null; ui.classList.remove('active'); }
+    };
+    ui.addEventListener('pointerup', end);
+    ui.addEventListener('pointercancel', end);
+    ui.addEventListener('contextmenu', e => e.preventDefault());
+  }
 
   function update() {
     padPressed.clear();
@@ -36,16 +91,17 @@ const Input = (() => {
     if (!pad) return;
     pad.buttons.forEach((b, i) => {
       const pr = b.pressed || b.value > 0.5;
-      if (pr && !padPrev[i]) { padPressed.add(i); device = 'pad'; any = true; }
+      if (pr && !padPrev[i]) { padPressed.add(i); device = 'pad'; any = true; document.body.classList.remove('touch'); }
       padPrev[i] = pr;
     });
     if (Math.hypot(pad.axes[0] || 0, pad.axes[1] || 0) > 0.4) device = 'pad';
   }
 
-  function endFrame() { pressedKeys.clear(); any = false; }
+  function endFrame() { pressedKeys.clear(); touchPressed.clear(); any = false; }
 
   function pressed(action) {
-    return (KEYS[action] || []).some(k => pressedKeys.has(k)) || (PAD[action] || []).some(i => padPressed.has(i));
+    return (KEYS[action] || []).some(k => pressedKeys.has(k)) || (PAD[action] || []).some(i => padPressed.has(i)) ||
+      touchPressed.has(action);
   }
 
   function move() {
@@ -62,6 +118,10 @@ const Input = (() => {
       if (b[13] && b[13].pressed) y += 1;
       if (b[14] && b[14].pressed) x -= 1;
       if (b[15] && b[15].pressed) x += 1;
+    }
+    if (touch.id !== null) {
+      const dx = touch.x - touch.ox, dy = touch.y - touch.oy, m = Math.hypot(dx, dy);
+      if (m > 8) { const k = Math.min(1, (m - 8) / (STICK_R - 16)) / m; x += dx * k; y += dy * k; }
     }
     const m = Math.hypot(x, y);
     if (m > 1) { x /= m; y /= m; }

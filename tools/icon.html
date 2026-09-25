@@ -1,0 +1,32 @@
+<!doctype html>
+<!-- Renders the home screen icon from the game's own sprites.
+     Regenerate with: tools/make-icons.sh -->
+<html><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#000}canvas{display:block;image-rendering:pixelated}</style>
+</head><body>
+<canvas id="icon"></canvas>
+<script src="../js/util.js"></script>
+<script src="../js/sprites.js"></script>
+<script>
+  const N = 32, size = +(new URLSearchParams(location.search).get('size') || 1024);
+  const [c, g] = makeCanvas(N, N);
+  // warm pink sky, darker towards the bottom
+  for (let y = 0; y < N; y++) R(g, 0, y, N, 1, shade('#f7a3bb', -y / N * 0.35));
+  // a few twinkles and a heart
+  for (const [x, y] of [[3, 4], [27, 3], [29, 11], [2, 14]]) P(g, x, y, '#ffe9f0');
+  P(g, 26, 7, '#fff6d8'); P(g, 25, 7, '#ffd84a'); P(g, 27, 7, '#ffd84a'); P(g, 26, 6, '#ffd84a'); P(g, 26, 8, '#ffd84a');
+  drawSprite(g, SPR.icon.heart, 4, 9);
+  // soft glow behind Lina
+  const grd = g.createRadialGradient(16, 17, 0, 16, 17, 14);
+  grd.addColorStop(0, 'rgba(255,240,230,0.55)'); grd.addColorStop(1, 'rgba(255,240,230,0)');
+  g.fillStyle = grd; g.fillRect(0, 0, N, N);
+  // Lina, head and shoulders, feet running off the bottom edge
+  const lina = SPR.styles.pigtails.lina.down[0];
+  g.drawImage(lina.c, Math.round((N - lina.c.width) / 2), 5);
+  const cv = document.getElementById('icon');
+  cv.width = cv.height = size;
+  const x = cv.getContext('2d');
+  x.imageSmoothingEnabled = false;
+  x.drawImage(c, 0, 0, size, size);
+</script>
+</body></html>
