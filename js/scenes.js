@@ -429,12 +429,48 @@ function buildCrossroads(sc, add, lamp) {
     interact: o => { o.state = 'wave'; o.t = 3; Sound.hello(); burst(o.x, o.y - 44, 'heart', 3); },
   }));
 
+  // the ice cream stand on the north-west corner
+  const iceBack = makeIceStand('back'), iceFront = makeIceStand('front');
+  const seller = { idle: makeSeller('idle'), scoop: makeSeller('scoop'), give: makeSeller('give') };
+  const ix = J - 141, iy = OUT.sw1 - 8;
+  const stand = add(obj(ix, iy, iceFront, {
+    shadowFn: ctx => { ctx.fillStyle = 'rgba(34,22,38,0.22)'; ctx.fillRect(ix - 25, iy - 1, 52, 4); },
+    solid: { x: ix - 26, y: iy - 14, w: 52, h: 14 }, iy: iy + 4, top: iy - 60, serving: null,
+    draw(ctx) {
+      drawSprite(ctx, iceBack, this.x, this.y);
+      const s = this.serving;
+      let pose = 'idle';
+      if (s && s.t < 1) pose = (s.t * 5 | 0) % 2 ? 'idle' : 'scoop';
+      else if (s && s.t < 1.6) pose = 'give';
+      drawSprite(ctx, seller[pose], this.x - 2, this.y - 11 - (pose === 'idle' && Math.sin(G.t * 2) > 0.6 ? 1 : 0));
+      drawSprite(ctx, this.spr, this.x, this.y);
+      if (s && s.t >= 1 && s.t < 1.6) drawIceCone(ctx, this.x + 7, this.y - 17, s.scoops);
+    },
+    interact: o => {
+      if (o.serving) return;
+      const r = Math.random, a = pick(r, ICE_FLAVORS);
+      o.serving = { t: 0, given: false, scoops: r() < 0.6 ? [a, pick(r, ICE_FLAVORS)] : [a] };
+      Sound.ding();
+    },
+  }));
+
   // Is it too loud here? (Lina covers her ears.)
   sc.loudAt = (x, y) => worker.state === 'hammer' && Math.hypot(x - worker.x, (y - worker.y) * 1.3) < 80;
 
   let tickT = 0;
   sc.update = dt => {
     peds.update(dt);
+    const sv = stand.serving;
+    if (sv) {
+      sv.t += dt;
+      if (sv.t >= 1.6 && !sv.given) {
+        sv.given = true;
+        Pl.ice = { scoops: sv.scoops, t: 40 };
+        Sound.yay();
+        burst(Pl.x, Pl.y - 30, 'heart', 4); burst(Pl.x, Pl.y - 30, 'confetti', 16);
+      }
+      if (sv.t > 2.4) stand.serving = null;
+    }
     const here = G.scene === sc;
     const w = worker;
     w.t -= dt;

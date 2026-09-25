@@ -25,6 +25,35 @@ const Sound = (() => {
     musicBus.connect(lp); lp.connect(master);
     lp.connect(delay); delay.connect(fb); fb.connect(delay); delay.connect(wet); wet.connect(master);
     setInterval(schedule, 30);
+    decodeClips();
+  }
+
+  // ------------------------------------------------- recorded sounds -----
+  // Fetched right away, decoded once the AudioContext exists.
+  const CLIPS = { yay: 'sounds/yay.m4a' };
+  const clips = {}, clipBytes = {};
+  for (const [name, url] of Object.entries(CLIPS)) {
+    fetch(url).then(r => r.ok ? r.arrayBuffer() : null)
+      .then(b => { if (b) { clipBytes[name] = b; decodeClips(); } })
+      .catch(() => { /* e.g. opened from file://, see playClip */ });
+  }
+  function decodeClips() {
+    if (!ac) return;
+    for (const name of Object.keys(clipBytes)) {
+      const b = clipBytes[name]; delete clipBytes[name];
+      ac.decodeAudioData(b, buf => { clips[name] = buf; }, () => {});
+    }
+  }
+  function playClip(name, vol = 1) {
+    if (ac && clips[name]) {
+      const s = ac.createBufferSource(), g = ac.createGain();
+      s.buffer = clips[name]; g.gain.value = vol;
+      s.connect(g); g.connect(master); s.start();
+      duck(s.buffer.duration + 0.4);
+      return;
+    }
+    // Pages opened from file:// can't fetch, but an <audio> element still plays.
+    try { const a = new Audio(CLIPS[name]); a.volume = Math.min(1, vol * 0.6); a.play().catch(() => {}); } catch (e) { /* no audio */ }
   }
 
   // One enveloped oscillator. `t` is an absolute AudioContext time (default: now).
@@ -260,6 +289,7 @@ const Sound = (() => {
     tick(vol, go) { tone(go ? 1250 : 950, 0.025, { type: 'square', vol: vol * 0.35 }); noise(0.02, { vol, freq: 2600, q: 3 }); },
     press() { noise(0.03, { vol: 0.12, freq: 1800, q: 2 }); tone(1500, 0.06, { type: 'square', vol: 0.03, delay: 0.02 }); },
     hello() { tone(196, 0.22, { type: 'triangle', vol: 0.16, slide: 1.25, attack: 0.03 }); tone(247, 0.3, { type: 'triangle', vol: 0.16, slide: 0.85, attack: 0.03, delay: 0.24 }); },
+    yay() { playClip('yay'); },
     chirp() { [0, 0.18, 0.3].forEach(d => tone(2300 + Math.random() * 600, 0.12, { vol: 0.05, slide: 1.35, delay: d })); },
     sparkle() { [1568, 2093, 2637, 3136].forEach((f, i) => tone(f, 0.35, { vol: 0.045, delay: i * 0.06 })); },
     setMood(m) { if (m !== mood) { mood = m; moodChanged = true; } },

@@ -506,3 +506,93 @@ function makeWorker(pose) {
     else { R(g, 18, 13 + o, 2, 4, shirt); R(g, 17, 16 + o, 3, 2, skin); }
   });
 }
+
+// ---- Ice cream stand -------------------------------------------------------
+const ICE_FLAVORS = ['#f7a6c4', '#8a5634', '#fff0c4', '#a8d88a', '#ff9a6a', '#8fc4ff'];
+const LETTERS = {
+  E: ['###', '#..', '##.', '#..', '###'],
+  I: ['###', '.#.', '.#.', '.#.', '###'],
+  S: ['.##', '#..', '.#.', '..#', '##.'],
+};
+
+// A little kiosk with a striped awning. Drawn in two layers so the seller
+// can stand in the serving window: 'back' is the inside, 'front' the rest.
+function makeIceStand(layer) {
+  if (layer === 'back') {
+    return sprite(52, 60, 26, 59, g => {
+      R(g, 10, 27, 32, 15, '#6a4e5a'); R(g, 10, 27, 32, 2, '#57404a');
+      R(g, 12, 32, 28, 1, '#8a6a74');
+      for (let x = 13; x < 39; x += 4) { R(g, x, 29, 3, 3, '#d9a55a'); P(g, x + 1, 31, '#b07a38'); }
+    }, { noOutline: true });
+  }
+  return sprite(52, 60, 26, 59, g => {
+    const wall = '#bfe6d6', wallSh = '#94c9b6', wallHi = '#dcf3ea', pink = '#f28bb0', pinkD = '#d9668e', white = '#fbf6ee', wood = '#b98a5a';
+    // walls with the serving window cut out (a see-through hole)
+    R(g, 2, 18, 48, 38, wall); R(g, 2, 18, 2, 38, wallHi); R(g, 46, 18, 4, 38, wallSh);
+    g.clearRect(10, 27, 32, 15); R(g, 10, 27, 32, 15, HOLE);
+    R(g, 9, 26, 34, 1, wood); R(g, 9, 26, 1, 16, wood); R(g, 42, 26, 1, 16, wood);
+    // counter and a glass display full of ice cream tubs
+    R(g, 6, 41, 40, 3, white); R(g, 6, 41, 40, 1, '#ffffff'); R(g, 6, 44, 40, 1, '#c9c2b8');
+    R(g, 7, 45, 38, 10, '#9fb8c0'); R(g, 8, 45, 36, 9, '#d7eef5');
+    ICE_FLAVORS.forEach((c, i) => {
+      const x = 9 + i * 6;
+      R(g, x, 48, 5, 1, shade(c, 0.3)); R(g, x, 49, 5, 2, c); R(g, x, 51, 5, 2, '#c9c2b8');
+    });
+    line(g, 10, 53, 14, 46, 'rgba(255,255,255,0.7)'); line(g, 30, 53, 33, 47, 'rgba(255,255,255,0.5)');
+    // pink base
+    R(g, 2, 55, 48, 5, pinkD); R(g, 2, 55, 48, 1, pink);
+    // roof and a pink and white awning with a scalloped edge
+    R(g, 0, 12, 52, 4, white); R(g, 0, 15, 52, 1, '#c9c2b8');
+    for (let x = 0; x < 52; x++) {
+      const col = (x >> 2) & 1 ? white : pink, k = x & 3;
+      R(g, x, 16, 1, 8, col);
+      if (k === 1 || k === 2) P(g, x, 24, col);
+    }
+    R(g, 0, 16, 52, 1, 'rgba(255,255,255,0.4)'); R(g, 0, 23, 52, 1, 'rgba(120,40,70,0.15)');
+    // sign on the roof: EIS and a cone
+    R(g, 11, 1, 30, 11, pinkD); R(g, 12, 2, 28, 9, white);
+    bitmap(g, LETTERS.E, 15, 4, pinkD); bitmap(g, LETTERS.I, 19, 4, pinkD); bitmap(g, LETTERS.S, 23, 4, pinkD);
+    poly(g, [[29.5, 7], [35.5, 7], [32.5, 11]], '#d9a55a'); oval(g, 32, 5, 2, 2, pink); P(g, 31, 4, '#ffd0e0');
+  });
+}
+
+// The ice cream seller, seen above the counter.
+// pose: 'idle', 'scoop' (arm up with the scoop) or 'give' (handing it over)
+function makeSeller(pose) {
+  return sprite(20, 22, 10, 21, g => {
+    const hair = '#a4502e', hairHi = '#c96c44', skin = '#f3c9a8', shirt = '#f28bb0', shirtSh = '#d9668e', apron = '#fbf6ee';
+    // striped shirt + apron
+    R(g, 4, 12, 12, 10, shirt); R(g, 14, 12, 2, 10, shirtSh);
+    for (let y = 13; y < 22; y += 2) R(g, 4, y, 12, 1, '#fbe0ea');
+    R(g, 6, 14, 8, 8, apron); R(g, 6, 13, 1, 1, apron); R(g, 13, 13, 1, 1, apron); R(g, 8, 18, 4, 2, '#f7b6cf');
+    // face, hair bun and a pink headband
+    R(g, 6, 5, 8, 7, skin);
+    disc(g, 10, 1, 2, hair); P(g, 9, 0, hairHi);
+    R(g, 5, 3, 10, 3, hair); R(g, 5, 6, 1, 6, hair); R(g, 14, 6, 1, 6, hair); R(g, 6, 6, 2, 1, hair); R(g, 12, 6, 2, 1, hair);
+    R(g, 5, 4, 10, 1, '#8fc4ff'); R(g, 7, 3, 3, 1, hairHi);
+    P(g, 8, 8, '#1d130f'); P(g, 11, 8, '#1d130f');
+    P(g, 7, 10, '#f2a292'); P(g, 12, 10, '#f2a292');
+    R(g, 9, 10, 2, 1, '#c46c62'); if (pose !== 'idle') P(g, 9, 11, '#c46c62');
+    // arms
+    R(g, 2, 13, 2, 8, shirt);
+    if (pose === 'scoop') { R(g, 16, 7, 2, 6, shirt); R(g, 16, 5, 2, 2, skin); R(g, 16, 2, 3, 3, '#c0c4ca'); P(g, 17, 3, '#e8ecf0'); }
+    else if (pose === 'give') { R(g, 16, 13, 2, 4, shirt); R(g, 17, 16, 2, 3, shirt); R(g, 17, 19, 2, 2, skin); }
+    else R(g, 16, 13, 2, 8, shirt);
+  });
+}
+
+// An ice cream cone with its tip at (x, y), drawn live in world pixels.
+function drawIceCone(ctx, x, y, scoops) {
+  x = Math.round(x); y = Math.round(y);
+  const F = (c, px, py, w, h) => { ctx.fillStyle = c; ctx.fillRect(x + px, y + py, w, h); };
+  const d = '#2a1c18';
+  F(d, -3, -6, 7, 3); F(d, -2, -3, 5, 2); F(d, -1, -1, 3, 2);
+  F('#d9a55a', -2, -5, 5, 2); F('#d9a55a', -1, -3, 3, 2); F('#d9a55a', 0, -1, 1, 1);
+  F('#b07a38', -1, -5, 1, 1); F('#b07a38', 1, -4, 1, 1); F('#b07a38', 0, -2, 1, 1);
+  scoops.forEach((c, i) => {
+    const b = -6 - i * 4;
+    F(d, -2, b - 4, 5, 1); F(d, -3, b - 3, 7, 4);
+    F(c, -1, b - 3, 3, 1); F(c, -2, b - 2, 5, 3);
+    F(shade(c, 0.45), -1, b - 2, 1, 1);
+  });
+}

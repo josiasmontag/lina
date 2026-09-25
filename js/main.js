@@ -12,7 +12,7 @@ const G = {
   particles: [], trans: null, target: null, night: 0, shake: 0, camOff: { x: 0, y: -14 },
 };
 const Pl = { x: 0, y: 0, dir: 'down', vx: 0, vy: 0, riding: false, dist: 0, frame: 0, moving: false,
-  swing: null, sleep: null, blink: 0, blinkT: 2.5, jump: 0, earsT: 0 };
+  swing: null, sleep: null, blink: 0, blinkT: 2.5, jump: 0, earsT: 0, ice: null };
 const bike = { scene: 'out', x: 0, y: 0, face: 'right' };
 const cat = { x: 600, y: 520, tx: 600, ty: 520, state: 'sit', t: 2, face: 'right', dist: 0, follow: 0 };
 const butterflies = [];
@@ -349,6 +349,13 @@ function updatePlayer(dt) {
   const loud = !Pl.riding && G.scene.loudAt && G.scene.loudAt(Pl.x, Pl.y);
   Pl.earsT = loud ? 0.25 : Math.max(0, Pl.earsT - dt);
 
+  // eating the ice cream, one scoop after the other
+  if (Pl.ice) {
+    Pl.ice.t -= dt;
+    if (Pl.ice.scoops.length > 1 && Pl.ice.t < 20) { Pl.ice.scoops = Pl.ice.scoops.slice(1); Sound.yum(); }
+    if (Pl.ice.t <= 0) { Pl.ice = null; Sound.yum(); burst(Pl.x, Pl.y - 20, 'heart', 2); }
+  }
+
   if (Pl.jump > 0) Pl.jump -= dt;
   Pl.blinkT -= dt;
   if (Pl.blinkT < 0) { Pl.blink = 0.13; Pl.blinkT = 2.2 + Math.random() * 2.5; }
@@ -478,6 +485,11 @@ function drawPlayer() {
   else if (Pl.blink > 0 && !Pl.moving) s = SPR.blink[Pl.dir];
   else s = SPR.lina[Pl.dir][Pl.frame];
   drawSprite(ctx, s, Pl.x, Pl.y - z);
+  // the ice cream in her hand (the hand from the sprite, in sprite pixels)
+  if (Pl.ice && !Pl.riding && Pl.earsT <= 0 && Pl.dir !== 'up') {
+    const bob = Pl.frame % 2, hx = { down: 16, right: 10, left: 9 }[Pl.dir];
+    drawIceCone(ctx, Pl.x - 10 + hx, Pl.y - 28 + 21 + bob - z, Pl.ice.scoops);
+  }
 }
 
 function drawCat() {
