@@ -654,6 +654,7 @@ function loop(now) {
 
 function tick(dt) {
   Input.update();
+  if (Input.pressed('reset')) { location.reload(); return; }
   if (!G.started) {
     if (Input.any) startGame();
   } else {

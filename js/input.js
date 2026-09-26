@@ -17,7 +17,7 @@ const Input = (() => {
     help: ['KeyH'],
   };
   // Xbox: 0=A 1=B 2=X 3=Y 8=View 9=Menu
-  const PAD = { interact: [0], bell: [1, 2, 3], music: [8], help: [] };
+  const PAD = { interact: [0], bell: [1, 2, 3], music: [8], help: [], reset: [9] };
 
   addEventListener('keydown', e => {
     if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
