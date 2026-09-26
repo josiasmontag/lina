@@ -21,6 +21,7 @@ then open http://localhost:8765.
 | Bike bell (riding) / hop (walking) | Q / B | B / X / Y | Ⓑ button |
 | Music on/off | M | View | ♪ button |
 | Show controls | H | | |
+| Restart (reload the page) | | Hold Menu | |
 
 Walk up to a door to go inside. Walk down onto the doormat to leave.
 At the crossroads, press the button on a pedestrian light to make it turn green sooner,
