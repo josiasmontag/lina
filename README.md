@@ -27,6 +27,8 @@ Walk up to a door to go inside. Walk down onto the doormat to leave.
 At the crossroads, press the button on a pedestrian light to make it turn green sooner,
 or get an ice cream at the stand on the corner.
 Use the mirror in Lina's room to switch between pigtails and loose hair.
+East of the crossroads a path leads into the woods to a second playground, with a big
+slide, a jungle gym to climb around on and a play ice cream parlour that serves sand ice cream.
 
 ## iPhone and iPad
 

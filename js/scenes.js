@@ -13,13 +13,14 @@ function obj(x, y, spr, o = {}) { return Object.assign({ x, y, spr }, o); }
 // OUTDOOR
 // --------------------------------------------------------------------------
 const OUT = {
-  W: 90 * 16, H: 46 * 16,
+  W: 110 * 16, H: 46 * 16,
   base: 176, sw1: 208, road: 240, roadB: 304, sw2B: 336,
   cross: 544,
   junction: 1216, // centre of the side street at the crossroads
   site: { x0: 1294, x1: 1398, y0: 172, y1: 224, wx: 1348, wy: 219 },
   gravel: { x: 340, y: 525, rx: 118, ry: 70 },
   swing: { x: 730, y: 478 },
+  park2: { x: 1530, y: 548, rx: 150, ry: 100 }, // the second playground, a clearing in the woods
   houses: [
     { id: 'home', cx: 256, w: 7, plaster: '#f0e2c6', beam: '#6b4430', roof: '#b25c44', door: '#d9738f', shutter: '#e48aa6', icon: 'heart', windows: [0.17, 0.83], dormer: true, seed: 11 },
     { id: 'bakery', cx: 544, w: 6, plaster: '#ecd6a8', beam: '#5a3a28', roof: '#6e7e8f', door: '#8a5532', shutter: null, icon: 'bread', windows: [0.17, 0.83], dormer: false, seed: 22 },
@@ -29,6 +30,11 @@ const OUT = {
 
 function inGravel(x, y) {
   const q = OUT.gravel, dx = (x - q.x) / q.rx, dy = (y - q.y) / q.ry;
+  return dx * dx + dy * dy <= 1;
+}
+
+function inPark2(x, y, pad = 0) {
+  const q = OUT.park2, dx = (x - q.x) / (q.rx + pad), dy = (y - q.y) / (q.ry + pad);
   return dx * dx + dy * dy <= 1;
 }
 
@@ -182,10 +188,38 @@ function buildOutdoorGround(flowerSpots) {
     P(g, Math.round(s.x + Math.cos(a) * d * 40), Math.round(s.y - 5 + Math.sin(a) * d * 16), pick(r, ['#c7ad78', '#ead6a8', '#b99d68']));
   }
 
+  // the second playground: sand inside a wooden edging, with a path in from the side street
+  const p2 = OUT.park2, r3 = rng(99);
+  g.save(); g.beginPath(); g.rect(OUT.junction + 64, 0, W, H); g.clip();
+  const segs2 = [];
+  for (let x = OUT.junction + 60; x <= p2.x - p2.rx + 10; x += 2) segs2.push([x, p2.y + 12 + Math.sin(x / 30) * 3]);
+  for (const [x, y] of segs2) disc(g, x, y, 14, '#8f7552');
+  for (const [x, y] of segs2) disc(g, x, y, 12, '#a3875f');
+  for (const [x, y] of segs2) for (let k = 0; k < 3; k++) {
+    const a = r3() * Math.PI * 2, d = r3() * 11;
+    P(g, Math.round(x + Math.cos(a) * d), Math.round(y + Math.sin(a) * d), pick(r3, ['#8f7552', '#b89b70', '#7d6446', '#c4ab82']));
+  }
+  g.restore();
+  for (let y = p2.y - p2.ry - 8; y <= p2.y + p2.ry + 8; y++) for (let x = p2.x - p2.rx - 8; x <= p2.x + p2.rx + 8; x++) {
+    const dx = (x - p2.x) / p2.rx, dy = (y - p2.y) / p2.ry, e = Math.sqrt(dx * dx + dy * dy);
+    if (e <= 1) P(g, x, y, r3() < 0.7 ? '#dcc48f' : pick(r3, ['#c7ad78', '#ead6a8', '#b99d68', '#e3cc98']));
+    else if (e <= 1.035) P(g, x, y, y < p2.y ? '#b98a5a' : '#9a6a40');
+    else if (e <= 1.05 && y > p2.y) P(g, x, y, '#5e3b24');
+  }
+  for (let a = 0; a < Math.PI * 2; a += 0.05) { // joints between the edging logs
+    if ((a * 20 | 0) % 3) continue;
+    P(g, Math.round(p2.x + Math.cos(a) * p2.rx * 1.02), Math.round(p2.y + Math.sin(a) * p2.ry * 1.02), '#6f4a2a');
+  }
+  for (let i = 0; i < 60; i++) { // footprints and little sand heaps
+    const a = r3() * Math.PI * 2, d = Math.sqrt(r3()) * 0.9;
+    const x = Math.round(p2.x + Math.cos(a) * d * p2.rx), y = Math.round(p2.y + Math.sin(a) * d * p2.ry);
+    R(g, x, y, 2, 1, '#c7ad78'); P(g, x, y - 1, '#ead6a8');
+  }
+
   // flower patches in the park (butterflies like these)
   for (let i = 0; i < 18; i++) {
     const x = 60 + r() * (W - 120), y = OUT.sw2B + 30 + r() * (H - OUT.sw2B - 80);
-    if (inGravel(x, y) || Math.hypot(x - s.x, y - s.y) < 70 || Math.abs(x - OUT.cross) < 30 || Math.abs(x - OUT.junction) < 90) continue;
+    if (inGravel(x, y) || inPark2(x, y, 40) || Math.hypot(x - s.x, y - s.y) < 70 || Math.abs(x - OUT.cross) < 30 || Math.abs(x - OUT.junction) < 90) continue;
     flowerSpots.push([x, y]);
     const col = pick(r, ['#e5484d', '#f28bb0', '#ffd35a', '#ffffff', '#c86ad8', '#7ab8ff']);
     for (let k = 0; k < 26; k++) {
@@ -275,7 +309,7 @@ function buildOutdoor() {
   add(obj(q.x - 40, q.y - 8, makeClimbRock(), { shadow: [22, 5], solid: { x: q.x - 62, y: q.y - 20, w: 44, h: 12 } }));
   add(obj(q.x + 50, q.y - 30, makePosts(), { shadow: [16, 3], solid: { x: q.x + 34, y: q.y - 34, w: 32, h: 4 } }));
   const sx = q.x + 22, sy = q.y + 45;
-  add(obj(sx, sy, makeSlide(), {
+  add(obj(sx, sy, makeSlide(SLIDES.small), { slide: SLIDES.small,
     shadowFn: ctx => { drawShadow(ctx, sx + 5, sy, 8, 2); drawShadow(ctx, sx + 42, sy, 20, 2); },
     solid: { x: sx - 2, y: sy - 3, w: 66, h: 3 }, ix: sx + 5, iy: sy + 2, top: sy - 48,
     interact: o => startSlide(o),
@@ -331,6 +365,7 @@ function buildOutdoor() {
     reserved.push([x, y, 12]);
     add(obj(x, y, pick(r, bushes), { shadow: [10, 2], solid: { x: x - 9, y: y - 4, w: 18, h: 4 } }));
   }
+  buildPlayground2(sc, add, tree, reserved, bench);
   add(obj(east + 60, OUT.sw2B + 40, bench, { shadow: [15, 2], solid: { x: east + 44, y: OUT.sw2B + 34, w: 32, h: 6 } }));
   reserved.push([east + 60, OUT.sw2B + 36, 24]);
   for (let i = 0; i < 40 && placed < 26; i++) {
@@ -341,6 +376,76 @@ function buildOutdoor() {
 
   buildCrossroads(sc, add, lamp);
   return sc;
+}
+
+// The second playground east of the crossroads: a clearing in the woods with
+// a big slide, a jungle gym to climb on and a play ice cream parlour.
+function buildPlayground2(sc, add, tree, reserved, bench) {
+  const p = OUT.park2, r = rng(515);
+  reserved.push([p.x, p.y, p.rx + 10]);
+  for (let x = OUT.junction + 64; x < p.x - p.rx; x += 16) reserved.push([x, p.y + 12, 14]); // the path in
+
+  // the big slide
+  const L = SLIDES.big, bx = p.x - 112, by = p.y - 12;
+  const mid = (L.top[0] + L.end[0]) / 2;
+  add(obj(bx, by, makeSlide(L), {
+    slide: L,
+    shadowFn: ctx => { drawShadow(ctx, bx + 5, by, 8, 2); drawShadow(ctx, bx + mid + 6, by, (L.end[0] - L.top[0]) / 2 | 0, 3); },
+    solid: { x: bx - 2, y: by - 3, w: L.out[0] + 4, h: 3 }, ix: bx + 5, iy: by + 2, top: by - L.ladder - 8,
+    interact: o => startSlide(o),
+  }));
+
+  // the jungle gym
+  const cx = p.x + 82, cy = p.y - 20;
+  add(obj(cx, cy, makeClimbFrame(), {
+    shadowFn: ctx => { ctx.fillStyle = 'rgba(34,22,38,0.2)'; ctx.fillRect(cx - 21, cy - 6, CLIMB.w + CLIMB.dx, 7); },
+    solid: { x: cx - 22, y: cy - 8, w: CLIMB.w + CLIMB.dx + 2, h: 8 }, ix: cx, iy: cy + 2, top: cy - CLIMB.h + CLIMB.dy - 6,
+    interact: o => startClimb(o),
+  }));
+
+  // the play ice cream parlour: sand ice cream, one scoop after the other
+  const SAND = ['#dcc48f', '#c7ad78', '#e3cc98'];
+  const ix = p.x - 48, iy = p.y + 42;
+  add(obj(ix, iy, makePlayIceStand(), {
+    shadow: [24, 3], solid: { x: ix - 23, y: iy - 12, w: 46, h: 12 }, iy: iy + 4, serving: null,
+    draw(ctx) {
+      drawSprite(ctx, this.spr, this.x, this.y);
+      const s = this.serving;
+      if (s) drawIceCone(ctx, this.x - 3, this.y - 12, s.scoops.slice(0, Math.min(s.scoops.length, Math.floor(s.t / 0.4))));
+    },
+    update(dt) {
+      const s = this.serving;
+      if (!s) return;
+      const n = Math.floor(s.t / 0.4);
+      s.t += dt;
+      if (Math.floor(s.t / 0.4) > n && n < s.scoops.length) { Sound.pop(); burst(this.x - 3, this.y - 22, 'dust', 2); }
+      if (s.t >= 0.4 * s.scoops.length + 0.5) {
+        this.serving = null;
+        Pl.ice = { scoops: s.scoops, t: 30 };
+        Sound.sparkle(); burst(Pl.x, Pl.y - 30, 'star', 4); burst(Pl.x, Pl.y - 30, 'heart', 2);
+      }
+    },
+    interact: o => {
+      if (o.serving) return;
+      const n = 1 + (Math.random() * 3 | 0);
+      o.serving = { t: 0, scoops: Array.from({ length: n }, () => pick(Math.random, SAND)) };
+    },
+  }));
+
+  add(obj(p.x + 72, p.y + 48, bench, { shadow: [15, 2], solid: { x: p.x + 56, y: p.y + 42, w: 32, h: 6 } }));
+
+  // trees all around, two rings, with a gap where the path comes in
+  const ring = (grow, step, pineOdds, skip) => {
+    const ax = p.rx + grow, ay = p.ry + grow * 0.8;
+    for (let a = 0; a < Math.PI * 2; a += step / ((ax + ay) / 2)) {
+      if (Math.abs(a - Math.PI) < skip) continue;
+      const x = p.x + Math.cos(a) * ax + (r() - 0.5) * 8, y = p.y + Math.sin(a) * ay + (r() - 0.5) * 6;
+      if (x > OUT.W - 36 || y > OUT.H - 30 || y < OUT.sw2B + 40) continue;
+      tree(x, y, r() < pineOdds, r);
+    }
+  };
+  ring(38, 26, 0.3, 0.3);
+  ring(72, 34, 0.5, 0.4);
 }
 
 // Pedestrian lights: the 'ns' lights guard the crossings over the side street,
@@ -378,6 +483,7 @@ function buildCrossroads(sc, add, lamp) {
   const J = OUT.junction, st = OUT.site;
   const lampAt = (x, y) => add(obj(x, y, lamp, { shadow: [4, 1], solid: { x: x - 2, y: y - 3, w: 4, h: 3 }, glow: { dy: -38, r: 30 } }));
   lampAt(J - 100, OUT.sw1 + 6); lampAt(J - 100, OUT.sw2B - 2); lampAt(J + 120, OUT.sw2B - 2);
+  lampAt(J + 380, OUT.sw1 + 6); lampAt(J + 420, OUT.sw2B - 2);
 
   // pedestrian lights, one on each corner
   const peds = makePedSignals(), pedSpr = makePedLight();
