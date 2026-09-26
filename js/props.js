@@ -235,47 +235,131 @@ function makeSwingFrame() {
   });
 }
 
-// Slide seen from the side: ladder on the left, platform, chute down to the right.
-// Local origin (2, 46) is the foot of the ladder; SLIDE_PATH is the chute
-// surface relative to that point.
-const SLIDE_TOP = [16, -34], SLIDE_END = [54, -4], SLIDE_OUT = [62, -4];
-function makeSlide() {
-  return sprite(68, 50, 2, 46, g => {
-    const X = x => 2 + x, Y = y => 46 + y;
+// Slides seen from the side: ladder on the left, platform, chute down to the
+// right. The local origin is the foot of the ladder; top / end / out are
+// points on the chute surface relative to it. T is when Lina has climbed up,
+// sat down and reached the bottom.
+const SLIDES = {
+  small: {
+    top: [16, -34], end: [54, -4], out: [62, -4], ladder: 40, legs: [0.5],
+    deck: ['#4a8ad0', '#7ab8ff', '#2f5f96'], chute: ['#ffd84a', '#e0b020', '#e5484d', '#b8322c'],
+    T: { climb: 1.0, sit: 1.4, ride: 2.0 },
+  },
+  // the big one on the second playground: a little roof, and bumps on the way down
+  big: {
+    top: [22, -58], end: [100, -4], out: [110, -4], ladder: 64, legs: [0.3, 0.62], waves: 2, waveH: 3, roof: true,
+    deck: ['#ffd35a', '#fff0a0', '#c99a2a'], chute: ['#7fd8e6', '#3fa8b8', '#f28bb0', '#c9668e'],
+    T: { climb: 1.7, sit: 2.1, ride: 3.4 },
+  },
+};
+function makeSlide(L) {
+  const [tx, ty] = L.top, roofY = ty - 36;
+  const h = 6 + Math.max(L.ladder, L.roof ? -roofY : 12 - ty);
+  return sprite(L.out[0] + 6, h, 2, h - 4, g => {
+    const X = x => 2 + x, Y = y => h - 4 + y;
     const steel = '#9aa0a8', steelSh = '#6c727a', steelHi = '#c9ced4';
-    // back support legs
-    line(g, X(14), Y(-34), X(14), Y(0), steelSh, 2); line(g, X(34), Y(-18), X(36), Y(0), steelSh, 2);
-    // ladder
-    for (const x of [0, 10]) { R(g, X(x), Y(-40), 2, 40, steel); R(g, X(x), Y(-40), 1, 40, steelHi); }
-    for (let y = -4; y > -36; y -= 5) R(g, X(2), Y(y), 8, 1, steelSh);
-    // platform with a little roof-less railing
-    R(g, X(-1), Y(-35), 18, 3, '#4a8ad0'); R(g, X(-1), Y(-35), 18, 1, '#7ab8ff'); R(g, X(-1), Y(-33), 18, 1, '#2f5f96');
-    R(g, X(13), Y(-44), 2, 9, steel); R(g, X(0), Y(-44), 15, 2, steel); R(g, X(0), Y(-44), 15, 1, steelHi);
-    // chute: bright yellow with a red rim, curving flat at the end
-    const pts = [];
-    for (let i = 0; i <= 40; i++) {
-      const k = i / 40, x = SLIDE_TOP[0] + (SLIDE_END[0] - SLIDE_TOP[0]) * k;
-      const e = k < 0.8 ? k / 0.8 * 0.9 : 0.9 + (1 - Math.pow(1 - (k - 0.8) / 0.2, 2)) * 0.1;
-      pts.push([x, SLIDE_TOP[1] + (SLIDE_END[1] - SLIDE_TOP[1]) * e]);
+    // support legs
+    line(g, X(tx - 2), Y(ty), X(tx - 2), Y(0), steelSh, 2);
+    for (const k of L.legs) {
+      const x = Math.round(tx + (L.end[0] - tx) * k);
+      line(g, X(x), Y(Math.round(slideSurface(L, x))), X(x + 2), Y(0), steelSh, 2);
     }
-    pts.push(SLIDE_OUT);
+    // ladder
+    for (const x of [0, 10]) { R(g, X(x), Y(-L.ladder), 2, L.ladder, steel); R(g, X(x), Y(-L.ladder), 1, L.ladder, steelHi); }
+    for (let y = -4; y > 4 - L.ladder; y -= 5) R(g, X(2), Y(y), 8, 1, steelSh);
+    // platform with a railing
+    const [dk, dkHi, dkSh] = L.deck;
+    R(g, X(-1), Y(ty - 1), tx + 2, 3, dk); R(g, X(-1), Y(ty - 1), tx + 2, 1, dkHi); R(g, X(-1), Y(ty + 1), tx + 2, 1, dkSh);
+    R(g, X(tx - 3), Y(ty - 10), 2, 9, steel); R(g, X(0), Y(ty - 10), tx - 1, 2, steel); R(g, X(0), Y(ty - 10), tx - 1, 1, steelHi);
+    if (L.roof) {
+      for (const x of [-2, tx]) { R(g, X(x), Y(roofY + 7), 2, ty - roofY - 8, '#8a5a38'); R(g, X(x), Y(roofY + 7), 1, ty - roofY - 8, '#a8744a'); }
+      poly(g, [[X(-7), Y(roofY + 10)], [X(tx / 2), Y(roofY + 1)], [X(tx + 7), Y(roofY + 10)]], '#e5484d');
+      poly(g, [[X(-7), Y(roofY + 10)], [X(tx / 2), Y(roofY + 1)], [X(tx / 2), Y(roofY + 10)]], '#f06a6a');
+      R(g, X(-7), Y(roofY + 10), tx + 14, 2, '#b8322c');
+      R(g, X(tx / 2), Y(roofY - 5), 1, 6, '#6c727a'); poly(g, [[X(tx / 2 + 1), Y(roofY - 5)], [X(tx / 2 + 6), Y(roofY - 3)], [X(tx / 2 + 1), Y(roofY - 1)]], '#f28bb0');
+    }
+    // the chute with a rim, curving flat at the end
+    const [ch, chSh, rim, rimSh] = L.chute;
+    const pts = [];
+    for (let x = tx; x < L.end[0]; x += 1) pts.push([x, Math.round(slideSurface(L, x))]);
+    pts.push(L.end, L.out);
     for (let i = 0; i + 1 < pts.length; i++) {
       const [x0, y0] = pts[i], [x1, y1] = pts[i + 1];
-      line(g, X(x0), Y(y0) + 1, X(x1), Y(y1) + 1, '#e0b020', 3);
-      line(g, X(x0), Y(y0), X(x1), Y(y1), '#ffd84a');
-      line(g, X(x0), Y(y0) - 2, X(x1), Y(y1) - 2, '#e5484d');
-      line(g, X(x0), Y(y0) + 3, X(x1), Y(y1) + 3, '#b8322c');
+      line(g, X(x0), Y(y0) + 1, X(x1), Y(y1) + 1, chSh, 3);
+      line(g, X(x0), Y(y0), X(x1), Y(y1), ch);
+      line(g, X(x0), Y(y0) - 2, X(x1), Y(y1) - 2, rim);
+      line(g, X(x0), Y(y0) + 3, X(x1), Y(y1) + 3, rimSh);
     }
     // front legs
-    R(g, X(58), Y(-2), 2, 2, steelSh);
+    R(g, X(L.end[0] + 4), Y(-2), 2, 2, steelSh);
   });
 }
 // Height of the chute surface above the ground at slide x (for Lina's ride).
-function slideSurface(x) {
-  if (x >= SLIDE_END[0]) return SLIDE_END[1];
-  const k = (x - SLIDE_TOP[0]) / (SLIDE_END[0] - SLIDE_TOP[0]);
+function slideSurface(L, x) {
+  const [tx, ty] = L.top, [ex, ey] = L.end;
+  if (x >= ex) return ey;
+  const k = Math.max(0, (x - tx) / (ex - tx));
   const e = k < 0.8 ? k / 0.8 * 0.9 : 0.9 + (1 - Math.pow(1 - (k - 0.8) / 0.2, 2)) * 0.1;
-  return SLIDE_TOP[1] + (SLIDE_END[1] - SLIDE_TOP[1]) * e;
+  const wave = L.waves && k < 0.8 ? Math.sin(k / 0.8 * Math.PI * 2 * L.waves) * L.waveH : 0;
+  return ty + (ey - ty) * e + wave;
+}
+
+// Jungle gym: a cube of painted bars. The front face is w x h, split into
+// cols x rows; the back face sits (dx, dy) behind it. Anchor: bottom centre
+// of the front face. Lina climbs around on the front face.
+const CLIMB = { w: 42, h: 36, cols: 3, rows: 3, dx: 10, dy: -7 };
+function makeClimbFrame() {
+  const { w, h, cols, rows, dx, dy } = CLIMB, cw = w / cols, rh = h / rows;
+  const X0 = 1, Y0 = h - dy + 1;
+  return sprite(w + dx + 4, h - dy + 4, X0 + w / 2, Y0, g => {
+    const bar = (x0, y0, x1, y1, c) => line(g, x0, y0, x1, y1, c, 2);
+    const red = '#e5484d', redHi = '#f58a8a', rungs = ['#4a8ad0', '#4fb35a', '#ffd35a'];
+    // back face and the bars going back, darker
+    const bx = X0 + dx, by = Y0 + dy;
+    for (let i = 0; i <= cols; i++) bar(bx + i * cw, by, bx + i * cw, by - h, shade(red, -0.4));
+    for (let j = 1; j <= rows; j++) bar(bx, by - j * rh, bx + w, by - j * rh, shade(rungs[j - 1], -0.4));
+    for (let j = 1; j <= rows; j++) bar(X0 + w, Y0 - j * rh, bx + w, by - j * rh, shade(rungs[j - 1], -0.25));
+    for (let i = 0; i < cols; i++) bar(X0 + i * cw, Y0 - h, bx + i * cw, by - h, shade(rungs[rows - 1], -0.25));
+    bar(X0 + w, Y0, bx + w, by, '#6c727a');
+    // front face: red posts and colourful rungs
+    for (let j = 1; j <= rows; j++) bar(X0, Y0 - j * rh, X0 + w, Y0 - j * rh, rungs[j - 1]);
+    for (let j = 1; j <= rows; j++) line(g, X0, Y0 - j * rh, X0 + w, Y0 - j * rh, shade(rungs[j - 1], 0.35));
+    for (let i = 0; i <= cols; i++) { bar(X0 + i * cw, Y0, X0 + i * cw, Y0 - h, red); line(g, X0 + i * cw, Y0, X0 + i * cw, Y0 - h, redHi); }
+    for (let i = 0; i <= cols; i++) R(g, X0 + i * cw - 1, Y0, 4, 1, '#6c727a');
+  });
+}
+
+// A wooden play ice cream parlour: children serve sand ice cream here.
+function makePlayIceStand() {
+  return sprite(50, 54, 25, 53, g => {
+    const wood = '#c8955a', woodSh = '#a0703e', woodHi = '#e0b47a', dark = '#6f4a2a';
+    // plank walls
+    R(g, 4, 22, 42, 31, wood);
+    for (let x = 9; x < 44; x += 6) R(g, x, 22, 1, 31, woodSh);
+    R(g, 4, 22, 1, 31, woodHi); R(g, 44, 22, 2, 31, woodSh);
+    // serving hatch with a counter board
+    R(g, 9, 28, 32, 12, '#4a3222'); R(g, 9, 28, 32, 2, '#3a2418');
+    R(g, 11, 31, 2, 2, '#e5484d'); R(g, 15, 31, 2, 2, '#ffd35a'); R(g, 19, 31, 2, 2, '#8fc4ff');
+    R(g, 6, 39, 38, 3, woodHi); R(g, 6, 41, 38, 1, dark);
+    // painted lower panel with dots
+    R(g, 6, 44, 38, 7, '#f7b6cf'); R(g, 6, 44, 38, 1, '#fbd3e2');
+    for (let x = 9; x < 42; x += 5) P(g, x, 47 + (x % 2), ['#ffffff', '#8fc4ff', '#ffd35a'][(x / 5 | 0) % 3]);
+    // on the counter: a red bucket with a shovel, and two sand ice creams in a holder
+    R(g, 8, 35, 6, 4, '#e5484d'); R(g, 8, 35, 6, 1, '#f58a8a'); line(g, 12, 35, 15, 31, '#4a8ad0');
+    R(g, 32, 37, 10, 2, dark);
+    for (const x of [34, 39]) {
+      poly(g, [[x - 1.5, 37], [x + 1.5, 37], [x, 40]], '#d9a55a');
+      oval(g, x, 35, 2, 1, '#dcc48f'); P(g, x - 1, 34, '#ead6a8');
+    }
+    // roof with a scalloped mint edge
+    R(g, 0, 16, 50, 4, '#6fc2a8'); R(g, 0, 16, 50, 1, '#9ee0cb');
+    for (let x = 0; x < 50; x += 4) { R(g, x, 20, 3, 2, '#6fc2a8'); P(g, x + 1, 22, '#6fc2a8'); }
+    // hand-painted sign: EIS in three colours and a cone
+    R(g, 8, 13, 2, 4, dark); R(g, 40, 13, 2, 4, dark);
+    R(g, 6, 2, 38, 12, '#fbf6ee'); R(g, 6, 2, 38, 1, '#ffffff'); R(g, 6, 13, 38, 1, '#c9c2b8');
+    bitmap(g, LETTERS.E, 11, 5, '#e5484d'); bitmap(g, LETTERS.I, 16, 5, '#4a8ad0'); bitmap(g, LETTERS.S, 21, 5, '#4fb35a');
+    poly(g, [[29.5, 8], [36.5, 8], [33, 13]], '#d9a55a'); oval(g, 33, 6, 3, 2, '#f7a6c4'); P(g, 32, 5, '#ffd0e0');
+  });
 }
 
 function makeMailbox() {

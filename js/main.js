@@ -12,7 +12,7 @@ const G = {
   particles: [], trans: null, target: null, night: 0, shake: 0, camOff: { x: 0, y: -14 },
 };
 const Pl = { x: 0, y: 0, dir: 'down', vx: 0, vy: 0, riding: false, dist: 0, frame: 0, moving: false,
-  swing: null, slide: null, sleep: null, blink: 0, blinkT: 2.5, jump: 0, earsT: 0, ice: null };
+  swing: null, slide: null, climb: null, sleep: null, blink: 0, blinkT: 2.5, jump: 0, earsT: 0, ice: null };
 const bike = { scene: 'out', x: 0, y: 0, face: 'right' };
 const cat = { x: 600, y: 520, tx: 600, ty: 520, state: 'sit', t: 2, face: 'right', dist: 0, follow: 0 };
 const butterflies = [];
@@ -203,31 +203,65 @@ function leaveSwing() {
 
 // ---------------------------------------------------------------- slide ----
 // Climb the ladder, sit down on top, whoosh down the chute, hop off.
-const SLIDE_T = { climb: 1.0, sit: 1.4, ride: 2.0 };
 function startSlide(o) {
   Pl.slide = { obj: o, t: 0, z: 0, spr: SPR.lina.up[0], step: 0 };
   Pl.x = o.x + 5; Pl.y = o.y + 1; Pl.dir = 'up'; Pl.vx = Pl.vy = 0;
 }
 function updateSlide(dt) {
-  const s = Pl.slide, o = s.obj, t0 = s.t;
+  const s = Pl.slide, o = s.obj, L = o.slide, T = L.T, t0 = s.t;
   s.t += dt;
-  if (s.t < SLIDE_T.climb) {
+  if (s.t < T.climb) {
     const f = Math.floor(s.t * 8) % 4;
     if (f !== s.step && f % 2) Sound.step('wood');
-    s.step = f; s.spr = SPR.lina.up[f]; s.z = 34 * s.t / SLIDE_T.climb;
-  } else if (s.t < SLIDE_T.sit) {
-    Pl.x = o.x + 12; s.z = 34; s.spr = SPR.slideSit;
-  } else if (s.t < SLIDE_T.ride) {
-    if (t0 < SLIDE_T.sit) Sound.wheee();
-    const k = (s.t - SLIDE_T.sit) / (SLIDE_T.ride - SLIDE_T.sit), lx = 14 + (SLIDE_OUT[0] - 14) * k * k;
-    Pl.x = o.x + lx; s.z = -slideSurface(lx);
+    s.step = f; s.spr = SPR.lina.up[f]; s.z = -L.top[1] * s.t / T.climb;
+  } else if (s.t < T.sit) {
+    Pl.x = o.x + L.top[0] - 4; s.z = -L.top[1]; s.spr = SPR.slideSit;
+  } else if (s.t < T.ride) {
+    if (t0 < T.sit) Sound.wheee();
+    const x0 = L.top[0] - 2, k = (s.t - T.sit) / (T.ride - T.sit), lx = x0 + (L.out[0] - x0) * k * k;
+    Pl.x = o.x + lx; s.z = -slideSurface(L, lx);
   } else {
     Pl.slide = null;
-    Pl.x = o.x + SLIDE_OUT[0] + 8; Pl.y = o.y + 3; Pl.dir = 'right';
+    Pl.x = o.x + L.out[0] + 8; Pl.y = o.y + 3; Pl.dir = 'right';
     if (blocked(G.scene, Pl.x, Pl.y)) Pl.y += 8;
     Pl.jump = 0.42; Sound.boing();
     burst(Pl.x, Pl.y, 'dust', 4); burst(Pl.x, Pl.y - 30, 'star', 3);
   }
+}
+
+// -------------------------------------------------------------- climbing ---
+// On the jungle gym Lina moves over the front face: u is sideways from its
+// middle, z the height of her feet. Up on top she stands and cheers. Climb
+// down to the ground to step off, or press a button to jump down.
+function startClimb(o) {
+  Pl.climb = { obj: o, u: Math.max(-15, Math.min(15, Pl.x - o.x)), z: 2, dist: 0, top: false, step: 0 };
+  Pl.y = o.y + 2; Pl.dir = 'up'; Pl.vx = Pl.vy = 0;
+  Sound.step('wood');
+}
+function leaveClimb(jump) {
+  const c = Pl.climb, o = c.obj;
+  Pl.climb = null;
+  Pl.x = o.x + c.u; Pl.y = o.y + 8; Pl.dir = 'down';
+  if (blocked(G.scene, Pl.x, Pl.y)) Pl.y += 8;
+  if (jump) { Pl.jump = 0.42; Sound.boing(); burst(Pl.x, Pl.y, 'dust', 4); }
+}
+function updateClimb(dt, mv, mag) {
+  const c = Pl.climb, o = c.obj, H = CLIMB.h;
+  if (Input.pressed('interact') || Input.pressed('bell')) { leaveClimb(true); return; }
+  if (c.z <= 0 && mv.y > 0.5) { leaveClimb(false); return; }
+  const ou = c.u, oz = c.z;
+  c.u = Math.max(-15, Math.min(15, c.u + mv.x * 28 * dt));
+  c.z = Math.max(0, Math.min(H, c.z - mv.y * 26 * dt));
+  const moved = Math.hypot(c.u - ou, c.z - oz);
+  c.dist += moved;
+  const f = Math.floor(c.dist / 5) % 4;
+  if (moved > 0 && f !== c.step && f % 2) Sound.step('wood');
+  c.step = f;
+  const top = c.z >= H;
+  if (top && !c.top) { Sound.yay(); burst(o.x + c.u, o.y - H - 26, 'star', 5); burst(o.x + c.u, o.y - H - 26, 'confetti', 14); }
+  c.top = top;
+  Pl.x = o.x + c.u;
+  if (!moved) c.step = 0;
 }
 
 // ---------------------------------------------------------------- sleep ----
@@ -269,7 +303,7 @@ function drawSleeper(b) {
 
 // -------------------------------------------------------------- targets ----
 function findTarget() {
-  if (Pl.riding || Pl.swing || Pl.slide || Pl.sleep || G.trans) return null;
+  if (Pl.riding || Pl.swing || Pl.slide || Pl.climb || Pl.sleep || G.trans) return null;
   const [dx, dy] = DIRV[Pl.dir];
   const fx = Pl.x + dx * 10, fy = Pl.y - 3 + dy * 8;
   let best = null, bd = 24;
@@ -324,6 +358,7 @@ function updatePlayer(dt) {
 
   if (Pl.sleep) { updateSleep(dt, mag); return; }
   if (Pl.slide) { updateSlide(dt); return; }
+  if (Pl.climb) { updateClimb(dt, mv, mag); return; }
   if (Pl.swing) {
     Pl.swing.timer += dt;
     const o = Pl.swing.obj;
@@ -465,6 +500,7 @@ function updateWorld(dt) {
   G.scenes.out.update(dt);
   for (const o of G.scene.objects) {
     if (o.hop > 0) o.hop -= dt;
+    if (o.update) o.update(dt);
     if (o.amp !== undefined) {
       o.phase += dt * 3.2;
       if (!o.rider) o.amp = Math.max(0, o.amp - dt * 0.35);
@@ -509,6 +545,12 @@ function snapCamera() { updateCamera(0, true); }
 function drawPlayer() {
   if (Pl.swing || Pl.sleep) return;
   if (Pl.slide) { drawSprite(ctx, Pl.slide.spr, Pl.x, Pl.y - 1 - Pl.slide.z); return; }
+  if (Pl.climb) {
+    const c = Pl.climb, o = c.obj;
+    if (c.top) drawSprite(ctx, SPR.lina.down[Math.sin(G.t * 8) > 0 ? 1 : 3], Pl.x, o.y - CLIMB.h - 3 - (Math.sin(G.t * 8) > 0 ? 1 : 0));
+    else drawSprite(ctx, SPR.lina.up[c.step], Pl.x, o.y - 1 - c.z);
+    return;
+  }
   const z = Pl.jump > 0 ? Math.sin(Math.PI * (1 - Pl.jump / 0.42)) * 7 : 0;
   let s;
   if (Pl.riding) s = SPR.rider[Pl.dir][Pl.frame];
