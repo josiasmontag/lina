@@ -104,6 +104,10 @@ const Input = (() => {
       touchPressed.has(action);
   }
 
+  function held(action) {
+    return !!pad && (PAD[action] || []).some(i => padPrev[i]);
+  }
+
   function move() {
     let x = 0, y = 0;
     if (down.has('ArrowLeft') || down.has('KeyA')) x -= 1;
@@ -129,7 +133,7 @@ const Input = (() => {
   }
 
   return {
-    update, endFrame, pressed, move,
+    update, endFrame, pressed, held, move,
     get device() { return device; },
     get any() { return any; },
     markAny() { any = true; },

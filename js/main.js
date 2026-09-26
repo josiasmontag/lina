@@ -652,9 +652,13 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 
+let resetHold = 0;
+
 function tick(dt) {
   Input.update();
-  if (Input.pressed('reset')) { location.reload(); return; }
+  // hold Menu for a second to restart, so a stray press doesn't reset the game
+  resetHold = Input.held('reset') ? resetHold + dt : 0;
+  if (resetHold >= 1) { location.reload(); return; }
   if (!G.started) {
     if (Input.any) startGame();
   } else {
