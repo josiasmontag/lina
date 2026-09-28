@@ -89,6 +89,99 @@ const Sound = (() => {
     s.connect(f); f.connect(g); g.connect(dest || master); s.start(t);
   }
 
+  // --------------------------------------------------- string instruments --
+  // Piano and guitar notes are rendered sample by sample into a buffer the
+  // first time they're needed, then replayed from the cache.
+  const strings = new Map();
+  function rendered(key, sec, fill) {
+    let buf = strings.get(key);
+    if (!buf) {
+      const d = new Float32Array(Math.ceil(ac.sampleRate * sec));
+      fill(d, ac.sampleRate);
+      let peak = 0;
+      for (let i = 0; i < d.length; i++) peak = Math.max(peak, Math.abs(d[i]));
+      const fade = Math.floor(ac.sampleRate * 0.25);
+      for (let i = 0; i < d.length; i++) d[i] *= Math.min(1, (d.length - i) / fade) / (peak || 1);
+      buf = ac.createBuffer(1, d.length, ac.sampleRate);
+      buf.getChannelData(0).set(d);
+      strings.set(key, buf);
+    }
+    return buf;
+  }
+  function playBuffer(buf, vol, { delay = 0, dest } = {}) {
+    const s = ac.createBufferSource(), g = ac.createGain();
+    s.buffer = buf; g.gain.value = vol;
+    s.connect(g); g.connect(dest || master); s.start(ac.currentTime + delay);
+  }
+
+  // A piano note: slightly stretched partials (stiff strings), each struck on
+  // two strings a hair apart so they beat, with a quick loud "prompt" decay
+  // into a long quiet ringing, plus the thump of the felt hammer.
+  function pianoNote(f) {
+    return rendered('piano' + f, 3, (d, sr) => {
+      const soft = Math.sqrt(262 / f);   // high notes die away sooner
+      for (let n = 1; n <= 12; n++) {
+        const fn = n * f * Math.sqrt(1 + 0.0004 * n * n);
+        if (fn > 9000) break;
+        const amp = Math.abs(Math.sin(Math.PI * n / 7.3)) / Math.pow(n, 1.1);
+        const kFast = (4 + n * 1.6) / soft, kSlow = (0.5 + n * 0.35) / soft;
+        for (const det of [-0.0005, 0.0005]) {
+          // sine by rotating a unit vector: much cheaper than Math.sin per sample
+          const w = 2 * Math.PI * fn * (1 + det) / sr, cw = Math.cos(w), sw = Math.sin(w);
+          const ph = Math.random() * 6.28, eF = Math.exp(-kFast / sr), eS = Math.exp(-kSlow / sr);
+          let x = Math.cos(ph), y = Math.sin(ph), fast = 0.65 * amp, slow = 0.35 * amp;
+          const rise = sr * 0.002;
+          for (let i = 0; i < d.length && fast + slow > 1e-5; i++) {
+            d[i] += (fast + slow) * y * (i < rise ? i / rise : 1);
+            const nx = x * cw - y * sw; y = x * sw + y * cw; x = nx;
+            fast *= eF; slow *= eS;
+          }
+        }
+      }
+      // hammer: a short, dull knock
+      let lp = 0;
+      for (let i = 0; i < sr * 0.04; i++) {
+        lp += 0.08 * ((Math.random() * 2 - 1) - lp);
+        d[i] += lp * 2.2 * Math.exp(-i / (sr * 0.008));
+      }
+    });
+  }
+
+  // A plucked nylon string (Karplus–Strong): a burst of soft noise circulates
+  // in a delay line one period long and loses its brightness on every pass.
+  function guitarNote(f) {
+    return rendered('guitar' + f, 3.5, (d, sr) => {
+      const period = sr / f, P = Math.round(period);
+      const D = period - 0.5, Di = Math.floor(D), frac = D - Di;
+      const loss = Math.pow(10, -3 / (4.5 * f));   // ~4.5 s to fall 60 dB
+      // excitation: lowpassed noise with a notch from plucking near the bridge
+      const ex = new Float32Array(P);
+      let lp = 0, mean = 0;
+      for (let i = 0; i < P; i++) { lp += 0.5 * ((Math.random() * 2 - 1) - lp); ex[i] = lp; mean += lp / P; }
+      const pick = Math.max(1, Math.round(P * 0.18));
+      for (let i = 0; i < P; i++) d[i] = (ex[i] - mean) - (i >= pick ? ex[i - pick] - mean : 0) * 0.9;
+      const at = j => (j >= 0 ? d[j] : 0);
+      for (let i = 0; i < d.length; i++) {
+        const a = at(i - Di) * (1 - frac) + at(i - Di - 1) * frac;
+        const b = at(i - Di - 1) * (1 - frac) + at(i - Di - 2) * frac;
+        d[i] = (i < P ? d[i] : 0) + loss * 0.5 * (a + b);
+      }
+    });
+  }
+  // the hollow wooden body: a warm low resonance, the brittle top rolled off
+  let guitarBody = null;
+  function body() {
+    if (!guitarBody) {
+      guitarBody = ac.createBiquadFilter(); guitarBody.type = 'peaking';
+      guitarBody.frequency.value = 180; guitarBody.Q.value = 1.2; guitarBody.gain.value = 5;
+      const air = ac.createBiquadFilter(); air.type = 'peaking';
+      air.frequency.value = 420; air.Q.value = 2; air.gain.value = 3;
+      const top = ac.createBiquadFilter(); top.type = 'lowpass'; top.frequency.value = 3800;
+      guitarBody.connect(air); air.connect(top); top.connect(master);
+    }
+    return guitarBody;
+  }
+
   // ------------------------------------------------------ music ducking ----
   function updateGain() {
     const now = ac.currentTime;
@@ -261,7 +354,13 @@ const Sound = (() => {
     },
     yum() { [523, 659, 784].forEach((f, i) => tone(f, 0.2, { type: 'triangle', vol: 0.12, delay: i * 0.08 })); },
     ding() { tone(1568, 1.0, { vol: 0.12 }); tone(3136, 0.4, { vol: 0.03 }); },
-    note(f) { duck(1.8); tone(f, 1.3, { type: 'triangle', vol: 0.17 }); tone(f * 2, 0.6, { vol: 0.05 }); },
+    piano(f) { if (!ac) return; duck(2.2); playBuffer(pianoNote(f), 0.32); },
+    // strum a chord from the lowest string up, like a thumb brushing down
+    strum(chord) {
+      if (!ac) return;
+      duck(3);
+      chord.forEach((f, i) => playBuffer(guitarNote(f), 0.2 * (0.85 + Math.random() * 0.3), { delay: i * 0.028 + Math.random() * 0.006, dest: body() }));
+    },
     drum() { tone(130, 0.45, { vol: 0.45, slide: 0.4 }); noise(0.12, { vol: 0.12, freq: 250, type: 'lowpass' }); },
     xylo() { duck(1.6); [523, 587, 659, 784, 880, 1047].forEach((f, i) => tone(f, 0.6, { vol: 0.14, delay: i * 0.09 })); },
     crackle() { for (let i = 0; i < 6; i++) noise(0.03, { vol: 0.1, freq: 1500 + Math.random() * 2000, delay: Math.random() * 0.4 }); },

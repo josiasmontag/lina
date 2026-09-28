@@ -5,7 +5,7 @@
 //                 interact?:fn, ix?, iy?, top? }
 // ---------------------------------------------------------------------------
 
-const NOTE = { G4: 392, A4: 440, B4: 494, C5: 523, D5: 587, E5: 659, F5: 698, G5: 784, A5: 880, B5: 988, C6: 1047 };
+const NOTE = { C3: 131, E3: 165, G3: 196, C4: 262, D4: 294, E4: 330, F4: 349, G4: 392, A4: 440, B4: 494, C5: 523, D5: 587, E5: 659, F5: 698, G5: 784, A5: 880, B5: 988, C6: 1047 };
 
 function obj(x, y, spr, o = {}) { return Object.assign({ x, y, spr }, o); }
 
@@ -744,13 +744,13 @@ function buildInteriors() {
   ]);
 
   // music house
-  const twinkle = [NOTE.C5, NOTE.C5, NOTE.G5, NOTE.G5, NOTE.A5, NOTE.A5, NOTE.G5, NOTE.F5, NOTE.F5, NOTE.E5, NOTE.E5, NOTE.D5, NOTE.D5, NOTE.C5];
+  const twinkle = [NOTE.C4, NOTE.C4, NOTE.G4, NOTE.G4, NOTE.A4, NOTE.A4, NOTE.G4, NOTE.F4, NOTE.F4, NOTE.E4, NOTE.E4, NOTE.D4, NOTE.D4, NOTE.C4];
   rooms.music = buildRoom('music', {
     w: W, h: H, seed: 3, floor: '#8a6444', wall: '#bcd6e0', pattern: 'notes', curtain: '#4a7aa0',
     windows: [108], pictures: [[20, 14, 'sun']], rug: [110, 116, 40, 18, '#7a9ad0'],
   }, [
-    obj(62, 54, makePiano(), { solid: { x: 42, y: WALL, w: 40, h: 11 }, iy: 60, interact: o => { Sound.note(twinkle[pianoIdx % twinkle.length]); pianoIdx++; burst(o.x + (Math.random() - 0.5) * 20, o.y - 26, 'note', 1); } }),
-    obj(162, 44, makeGuitar(), { iy: 54, interact: o => { [NOTE.C5, NOTE.E5, NOTE.G5, NOTE.C6].forEach((f, i) => setTimeout(() => Sound.note(f), i * 60)); burst(o.x, o.y - 20, 'note', 3); } }),
+    obj(62, 54, makePiano(), { solid: { x: 42, y: WALL, w: 40, h: 11 }, iy: 60, interact: o => { Sound.piano(twinkle[pianoIdx % twinkle.length]); pianoIdx++; burst(o.x + (Math.random() - 0.5) * 20, o.y - 26, 'note', 1); } }),
+    obj(162, 44, makeGuitar(), { iy: 54, interact: o => { Sound.strum([NOTE.C3, NOTE.E3, NOTE.G3, NOTE.C4, NOTE.E4]); burst(o.x, o.y - 20, 'note', 3); } }),
     obj(152, 116, makeDrum(), { shadow: [8, 2], solid: { x: 144, y: 110, w: 16, h: 6 }, interact: o => { Sound.drum(); burst(o.x, o.y - 14, 'star', 4); G.shake = 0.25; } }),
     obj(70, 118, makeXylo(), { shadow: [14, 2], solid: { x: 56, y: 110, w: 28, h: 8 }, interact: o => { Sound.xylo(); burst(o.x, o.y - 10, 'note', 6); } }),
   ]);
