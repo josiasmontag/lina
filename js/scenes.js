@@ -38,44 +38,49 @@ function inPark2(x, y, pad = 0) {
   return dx * dx + dy * dy <= 1;
 }
 
-function buildOutdoorGround(flowerSpots) {
-  const { W, H } = OUT;
-  const [c, g] = makeCanvas(W, H);
-  const r = rng(1234);
+// Flower beds along a house front, and a stone path from the door to the sidewalk.
+function frontGarden(g, r, cx, hw) {
+  for (const [x0, x1] of [[cx - hw, cx - 12], [cx + 12, cx + hw]]) {
+    R(g, x0, OUT.base, x1 - x0, 6, '#5a3e2a'); R(g, x0, OUT.base + 5, x1 - x0, 1, '#4a3222');
+    for (let x = x0 + 1; x < x1 - 1; x += 2) {
+      P(g, x, OUT.base + 3, '#3c6934'); P(g, x + 1, OUT.base + 2, '#55873d');
+      if (r() < 0.6) P(g, x, OUT.base + 1 + (r() * 2 | 0), pick(r, ['#e5484d', '#f28bb0', '#ffd35a', '#ffffff', '#c86ad8']));
+    }
+  }
+  R(g, cx - 10, OUT.base, 20, OUT.sw1 - OUT.base, '#8a7a5f');
+  for (let y = OUT.base + 1; y < OUT.sw1; y += 8) {
+    for (const [ox, w] of [[-9, 9], [1, 8]]) {
+      const yy = y + (ox > 0 ? 3 : 0);
+      R(g, cx + ox, yy, w, 6, '#bcae93'); R(g, cx + ox, yy + 5, w, 1, '#8f8068'); R(g, cx + ox, yy, w, 1, '#d4c7ad');
+    }
+  }
+}
 
-  // grass
+// Grass with lighter and darker patches, blades and tiny flowers.
+function paintLawn(g, W, H, r, patches, flowers) {
   R(g, 0, 0, W, H, '#6e9444');
-  for (let i = 0; i < 320; i++) disc(g, r() * W, r() * H, 8 + r() * 26, r() < 0.5 ? 'rgba(70,100,45,0.16)' : 'rgba(150,175,85,0.13)');
+  for (let i = 0; i < patches; i++) disc(g, r() * W, r() * H, 8 + r() * 26, r() < 0.5 ? 'rgba(70,100,45,0.16)' : 'rgba(150,175,85,0.13)');
   for (let i = 0; i < W * H / 12; i++) {
     const x = r() * W | 0, y = r() * H | 0, k = r();
     g.fillStyle = k < 0.45 ? '#5a7d37' : k < 0.82 ? '#83a94f' : '#9dbd5f';
     g.fillRect(x, y, 1, k < 0.45 ? 2 : 1);
   }
-  // tiny flowers in the lawn
-  for (let i = 0; i < 420; i++) {
+  for (let i = 0; i < flowers; i++) {
     const x = r() * W | 0, y = r() * H | 0;
     const col = pick(r, ['#ffffff', '#fff1a8', '#f7b6cf', '#bcd8ff']);
     P(g, x - 1, y, col); P(g, x + 1, y, col); P(g, x, y - 1, col); P(g, x, y + 1, col); P(g, x, y, '#ffd24a');
   }
+}
+
+function buildOutdoorGround(flowerSpots) {
+  const { W, H } = OUT;
+  const [c, g] = makeCanvas(W, H);
+  const r = rng(1234);
+
+  paintLawn(g, W, H, r, 320, 420);
 
   // flower beds along house fronts + stone paths to doors
-  for (const h of OUT.houses) {
-    const hw = h.w * 16 / 2;
-    for (const [x0, x1] of [[h.cx - hw, h.cx - 12], [h.cx + 12, h.cx + hw]]) {
-      R(g, x0, OUT.base, x1 - x0, 6, '#5a3e2a'); R(g, x0, OUT.base + 5, x1 - x0, 1, '#4a3222');
-      for (let x = x0 + 1; x < x1 - 1; x += 2) {
-        P(g, x, OUT.base + 3, '#3c6934'); P(g, x + 1, OUT.base + 2, '#55873d');
-        if (r() < 0.6) P(g, x, OUT.base + 1 + (r() * 2 | 0), pick(r, ['#e5484d', '#f28bb0', '#ffd35a', '#ffffff', '#c86ad8']));
-      }
-    }
-    R(g, h.cx - 10, OUT.base, 20, OUT.sw1 - OUT.base, '#8a7a5f');
-    for (let y = OUT.base + 1; y < OUT.sw1; y += 8) {
-      for (const [ox, w] of [[-9, 9], [1, 8]]) {
-        const yy = y + (ox > 0 ? 3 : 0);
-        R(g, h.cx + ox, yy, w, 6, '#bcae93'); R(g, h.cx + ox, yy + 5, w, 1, '#8f8068'); R(g, h.cx + ox, yy, w, 1, '#d4c7ad');
-      }
-    }
-  }
+  for (const h of OUT.houses) frontGarden(g, r, h.cx, h.w * 16 / 2);
 
   // sidewalks (square pavers)
   const pave = (y0, y1, x0 = 0, x1 = W) => {
@@ -234,7 +239,7 @@ function buildOutdoor() {
   const { W, H } = OUT;
   const flowerSpots = [];
   const sc = {
-    id: 'out', w: W, h: H, outdoor: true, objects: [], solids: [], doors: [],
+    id: 'out', w: W, h: H, outdoor: true, bikes: true, objects: [], solids: [], doors: [],
     bounds: { x0: 28, y0: 118, x1: W - 28, y1: H - 30 },
     ground: buildOutdoorGround(flowerSpots), flowerSpots,
   };
@@ -251,7 +256,7 @@ function buildOutdoor() {
       shadowFn: ctx => { ctx.fillStyle = 'rgba(34,22,38,0.22)'; ctx.fillRect(h.cx - hw + 2, OUT.base - 1, s.W + 4, 4); },
     }));
     const dx = h.cx + s.doorX;
-    sc.doors.push({ x: dx - 8, y: OUT.base - 3, w: 16, h: 9, to: h.id, need: 'up', spawn: { x: dx, y: OUT.base + 12 } });
+    sc.doors.push({ x: dx - 8, y: OUT.base - 3, w: 16, h: 9, to: h.id, need: 'up' });
     h.doorWorldX = dx;
     for (const [x0, x1] of [[h.cx - hw - 6, h.cx - 12], [h.cx + 13, h.cx + hw + 6]]) {
       const len = x1 - x0;
@@ -322,34 +327,7 @@ function buildOutdoor() {
   // swing
   const sw = OUT.swing;
   reserved.push([sw.x, sw.y, 60]);
-  const swingFrame = makeSwingFrame();
-  const swingObj = add(obj(sw.x, sw.y, swingFrame, {
-    solid: null, ix: sw.x - 11, iy: sw.y + 2, top: sw.y - 44, seatX: sw.x - 11, phase: 0, amp: 0, rider: false,
-    shadowFn: ctx => { drawShadow(ctx, sw.x - 22, sw.y, 4, 1); drawShadow(ctx, sw.x + 22, sw.y, 4, 1); drawShadow(ctx, sw.x - 11, sw.y + 2, 5, 2); drawShadow(ctx, sw.x + 11, sw.y + 2, 5, 2); },
-    draw(ctx) {
-      drawSprite(ctx, this.spr, this.x, this.y);
-      for (const [sx, moving] of [[this.x - 11, true], [this.x + 11, false]]) {
-        const a = moving ? Math.sin(this.phase) * this.amp : Math.sin(G.t * 1.3) * 0.05;
-        const seatY = this.y - 13 + Math.sin(a) * 6, lift = Math.abs(Math.sin(a)) * 4;
-        const sy = Math.round(seatY - lift);
-        ctx.fillStyle = '#6d6a70';
-        ctx.fillRect(sx - 4, this.y - 38, 1, sy - (this.y - 38));
-        ctx.fillRect(sx + 4, this.y - 38, 1, sy - (this.y - 38));
-        if (moving && this.rider) {
-          drawSprite(ctx, SPR.linaSit, sx, sy + 1);
-          ctx.fillStyle = '#2a1c18'; ctx.fillRect(sx - 6, sy, 12, 3);
-          ctx.fillStyle = '#e2336f'; ctx.fillRect(sx - 5, sy, 10, 2);
-          ctx.fillStyle = LC.skin; ctx.fillRect(sx - 7, sy - 8, 2, 2); ctx.fillRect(sx + 5, sy - 8, 2, 2);
-        } else {
-          ctx.fillStyle = '#2a1c18'; ctx.fillRect(sx - 6, sy - 1, 12, 4);
-          ctx.fillStyle = moving ? '#e2336f' : '#4a8ad0'; ctx.fillRect(sx - 5, sy, 10, 2);
-        }
-      }
-    },
-    interact: o => startSwing(o),
-  }));
-  sc.solids.push({ x: sw.x - 28, y: sw.y - 3, w: 8, h: 3 }, { x: sw.x + 20, y: sw.y - 3, w: 8, h: 3 });
-  sc.swing = swingObj;
+  addSwing(sc, add, sw.x, sw.y);
 
   // trees in the park
   reserved.push([OUT.cross, 380, 30], [OUT.cross, 440, 30], [620, 460, 30], [480, 470, 30]);
@@ -375,7 +353,45 @@ function buildOutdoor() {
   }
 
   buildCrossroads(sc, add, lamp);
+  buildKitaOutside(sc, add);
   return sc;
+}
+
+// A swing frame with two seats; Lina swings on the left one. Another child
+// (a sprite set from makeKidSprites) can swing on the right one.
+function addSwing(sc, add, x, y, kid = null) {
+  const frame = makeSwingFrame();
+  add(obj(x, y, frame, {
+    solid: null, ix: x - 11, iy: y + 2, top: y - 44, seatX: x - 11, phase: 0, amp: 0, rider: false,
+    shadowFn: ctx => { drawShadow(ctx, x - 22, y, 4, 1); drawShadow(ctx, x + 22, y, 4, 1); drawShadow(ctx, x - 11, y + 2, 5, 2); drawShadow(ctx, x + 11, y + 2, 5, 2); },
+    draw(ctx) {
+      drawSprite(ctx, this.spr, this.x, this.y);
+      for (const [sx, moving] of [[this.x - 11, true], [this.x + 11, false]]) {
+        const a = moving ? Math.sin(this.phase) * this.amp : kid ? Math.sin(G.t * 2.9) * 0.55 : Math.sin(G.t * 1.3) * 0.05;
+        const seatY = this.y - 13 + Math.sin(a) * 6, lift = Math.abs(Math.sin(a)) * 4;
+        const sy = Math.round(seatY - lift);
+        ctx.fillStyle = '#6d6a70';
+        ctx.fillRect(sx - 4, this.y - 38, 1, sy - (this.y - 38));
+        ctx.fillRect(sx + 4, this.y - 38, 1, sy - (this.y - 38));
+        if (moving && this.rider) {
+          drawSprite(ctx, SPR.linaSit, sx, sy + 1);
+          ctx.fillStyle = '#2a1c18'; ctx.fillRect(sx - 6, sy, 12, 3);
+          ctx.fillStyle = '#e2336f'; ctx.fillRect(sx - 5, sy, 10, 2);
+          ctx.fillStyle = LC.skin; ctx.fillRect(sx - 7, sy - 8, 2, 2); ctx.fillRect(sx + 5, sy - 8, 2, 2);
+        } else if (!moving && kid) {
+          drawSprite(ctx, kid.sit, sx, sy + 1);
+          ctx.fillStyle = '#2a1c18'; ctx.fillRect(sx - 6, sy, 12, 3);
+          ctx.fillStyle = '#4a8ad0'; ctx.fillRect(sx - 5, sy, 10, 2);
+          ctx.fillStyle = kid.skin; ctx.fillRect(sx - 7, sy - 8, 2, 2); ctx.fillRect(sx + 5, sy - 8, 2, 2);
+        } else {
+          ctx.fillStyle = '#2a1c18'; ctx.fillRect(sx - 6, sy - 1, 12, 4);
+          ctx.fillStyle = moving ? '#e2336f' : '#4a8ad0'; ctx.fillRect(sx - 5, sy, 10, 2);
+        }
+      }
+    },
+    interact: o => startSwing(o),
+  }));
+  sc.solids.push({ x: x - 28, y: y - 3, w: 8, h: 3 }, { x: x + 20, y: y - 3, w: 8, h: 3 });
 }
 
 // The second playground east of the crossroads: a clearing in the woods with
@@ -622,10 +638,18 @@ function buildRoomGround(o) {
   const w = o.w, h = o.h;
   const [c, g] = makeCanvas(w, h);
   const r = rng(o.seed);
-  // wooden floor
   R(g, 0, 0, w, h, o.floor);
   const fd = shade(o.floor, -0.25);
-  for (let y = WALL; y < h; y += 5) {
+  if (o.floorKind === 'tiles') { // square stone tiles
+    for (let y = WALL; y < h; y += 10) for (let x = 0; x < w; x += 10) {
+      R(g, x + 1, y + 1, 9, 9, r() < 0.5 ? shade(o.floor, 0.05) : shade(o.floor, -0.04));
+      R(g, x, y, 10, 1, fd); R(g, x, y, 1, 10, fd); P(g, x + 1, y + 1, shade(o.floor, 0.15));
+      if (r() < 0.3) P(g, x + 2 + (r() * 7 | 0), y + 2 + (r() * 7 | 0), shade(o.floor, -0.12));
+    }
+  } else if (o.floorKind === 'lino') { // soft linoleum with a few seams and specks
+    for (let i = 0; i < w * h / 10; i++) P(g, r() * w | 0, WALL + (r() * (h - WALL) | 0), r() < 0.5 ? shade(o.floor, 0.06) : shade(o.floor, -0.06));
+    for (let x = 36; x < w; x += 48) R(g, x, WALL, 1, h - WALL, shade(o.floor, -0.1));
+  } else for (let y = WALL; y < h; y += 5) {
     R(g, 0, y, w, 1, fd);
     let x = -(r() * 30 | 0);
     while (x < w) {
@@ -647,6 +671,17 @@ function buildRoomGround(o) {
   if (o.pattern === 'stripes') for (let x = 0; x < w; x += 8) R(g, x, 0, 3, WALL, wd);
   if (o.pattern === 'dots') for (let y = 8; y < WALL - 14; y += 6) for (let x = (y / 6 % 2) * 4; x < w; x += 8) P(g, x, y, wd);
   if (o.pattern === 'notes') for (let y = 8; y < WALL - 18; y += 12) for (let x = (y / 12 % 2) * 10; x < w; x += 20) bitmap(g, BMP.note, x, y, wd);
+  if (o.pattern === 'hands') for (let y = 8; y < WALL - 20; y += 10) for (let x = (y / 10 % 2) * 11 + 3; x < w; x += 22) {
+    bitmap(g, BMP.hand, x, y, pick(r, ['#f28bb0', '#8fc4ff', '#ffd35a', '#a8d88a', '#c9a0dc', '#ff9a6a']));
+  }
+  if (o.pattern === 'bamboo') for (let x = 4; x < w; x += 13 + (r() * 6 | 0)) {
+    R(g, x, 6, 2, WALL - 20, '#9cc27a'); R(g, x, 6, 1, WALL - 20, '#b8d894');
+    for (let y = 10 + (r() * 6 | 0); y < WALL - 16; y += 8) { R(g, x - 1, y, 4, 1, '#6e9a50'); P(g, x + 2, y - 1, '#7fae5a'); P(g, x + 3, y - 2, '#7fae5a'); }
+  }
+  if (o.pattern === 'leaves') for (let y = 9; y < WALL - 18; y += 9) for (let x = (y / 9 % 2) * 8 + 2; x < w; x += 16) {
+    const col = pick(r, ['#e0a14a', '#c07234', '#d8b060', '#b8663a']);
+    R(g, x + 1, y, 2, 1, col); R(g, x, y + 1, 3, 1, col); R(g, x, y + 2, 2, 1, col); P(g, x - 1, y + 3, shade(col, -0.3));
+  }
   R(g, 0, WALL - 14, w, 14, '#9a6a40'); for (let x = 0; x < w; x += 8) R(g, x, WALL - 13, 1, 11, '#7a4e30');
   R(g, 0, WALL - 15, w, 2, '#b98a5a'); R(g, 0, WALL - 2, w, 2, '#5e3b24');
   R(g, 0, 0, w, 5, '#2c1e19'); R(g, 0, 5, w, 1, '#4a3228');
@@ -665,6 +700,8 @@ function buildRoomGround(o) {
     if (kind === 'pretzel') iconOnSign(g, 'bread', px + 3, py + 3);
     if (kind === 'heart') bitmap(g, BMP.heart, px + 3, py + 3, '#e8507e');
   }
+  for (const d of o.doors || []) backWallDoor(g, o, d);
+  if (o.decorate) o.decorate(g, r);
   R(g, 0, WALL, w, 3, 'rgba(40,25,20,0.28)');
   // side walls
   R(g, 0, 0, 7, h, '#3a2a22'); R(g, w - 7, 0, 7, h, '#3a2a22');
@@ -673,16 +710,61 @@ function buildRoomGround(o) {
   const gx = w / 2 - 12;
   R(g, 0, h - 8, gx, 8, '#3a2a22'); R(g, gx + 24, h - 8, w - gx - 24, 8, '#3a2a22');
   R(g, 0, h - 8, gx, 1, '#56402f'); R(g, gx + 24, h - 8, w - gx - 24, 1, '#56402f');
-  R(g, gx, h - 8, 24, 8, shade(o.floor, -0.35));
-  R(g, gx + 2, h - 17, 20, 10, '#9a3a32'); R(g, gx + 3, h - 16, 18, 8, '#b8493e');
-  for (let x = gx + 4; x < gx + 20; x += 3) R(g, x, h - 15, 1, 6, '#9a3a32');
+  if (o.exitLook === 'stairs') { // a stairwell going down, with railings on both sides
+    for (let i = 0; i < 7; i++) {
+      const y = h - 34 + i * 5, k = -0.1 - i * 0.09;
+      R(g, gx, y, 24, 5, shade('#b98a5a', k)); R(g, gx, y, 24, 1, shade('#d0a878', k)); R(g, gx, y + 4, 24, 1, shade('#8a5a38', k));
+    }
+    for (const x of [gx - 4, gx + 25]) {
+      R(g, x, h - 36, 3, 36, '#6f4a2a'); R(g, x, h - 36, 3, 1, '#b98a5a');
+      for (let y = h - 34; y < h - 8; y += 6) R(g, x + 1, y, 1, 4, '#8a5a38');
+    }
+  } else {
+    R(g, gx, h - 8, 24, 8, shade(o.floor, -0.35));
+    R(g, gx + 2, h - 17, 20, 10, '#9a3a32'); R(g, gx + 3, h - 16, 18, 8, '#b8493e');
+    for (let x = gx + 4; x < gx + 20; x += 3) R(g, x, h - 15, 1, 6, '#9a3a32');
+  }
   return c;
 }
 
+// A door in the back wall: a plain painted door (with an optional sign on it),
+// a glass door looking out on the garden, or a staircase going up.
+function backWallDoor(g, o, d) {
+  const x = d.x - 9, y = WALL - 32;
+  if (d.look === 'stairs') {
+    R(g, x - 5, 6, 28, WALL - 6, shade(o.wall, -0.35));
+    for (let i = 0; i < 8; i++) {
+      const sy = WALL - 5 * (i + 1), inset = i >> 1, k = -i * 0.07;
+      R(g, x - 4 + inset, sy, 26 - inset * 2, 5, shade('#8a5a38', k)); R(g, x - 4 + inset, sy, 26 - inset * 2, 2, shade('#c89a68', k));
+    }
+    line(g, x - 5, WALL - 2, x, 8, '#5e3b24', 2); line(g, x + 22, WALL - 2, x + 17, 8, '#5e3b24', 2);
+    for (let i = 1; i < 6; i++) { R(g, x - 5 + i, WALL - 2 - i * 7, 1, 6, '#6f4a2a'); R(g, x + 22 - i, WALL - 2 - i * 7, 1, 6, '#6f4a2a'); }
+    return;
+  }
+  R(g, x - 2, y - 2, 22, 34, '#5e3b24'); R(g, x - 2, y - 2, 22, 1, '#8a5a38');
+  if (d.look === 'glass') {
+    R(g, x, y, 18, 30, '#bfe6f5'); R(g, x, y + 16, 18, 14, '#8fc46a'); R(g, x, y + 16, 18, 1, '#6e9a50');
+    disc(g, x + 5, y + 14, 4, '#5f8f45'); disc(g, x + 13, y + 15, 3, '#6fa052');
+    R(g, x + 8, y, 2, 30, '#e8e4dc'); R(g, x, y + 10, 18, 1, '#e8e4dc');
+    P(g, x + 2, y + 2, '#ffffff'); P(g, x + 3, y + 2, '#ffffff'); P(g, x + 2, y + 3, '#ffffff');
+    R(g, x + 6, y + 18, 1, 3, '#b0b5bd'); R(g, x + 11, y + 18, 1, 3, '#b0b5bd');
+  } else {
+    const col = d.col || '#d9738f';
+    R(g, x, y, 18, 30, col); R(g, x, y, 18, 1, shade(col, 0.25));
+    for (let xx = x + 4; xx < x + 18; xx += 4) R(g, xx, y + 1, 1, 29, shade(col, -0.15));
+    R(g, x + 14, y + 16, 2, 2, '#e8c65a');
+    if (!d.sign) { R(g, x + 4, y + 4, 10, 9, shade(col, -0.35)); R(g, x + 5, y + 5, 8, 7, '#bfe6f5'); R(g, x + 5, y + 5, 8, 2, '#e4f5fb'); }
+  }
+  if (d.sign) d.sign(g, x + 9, y + 10);
+  R(g, x - 1, WALL - 1, 20, 1, '#8a8480');
+}
+
+// o.exit is where the bottom door leads (default: out to the house's door),
+// o.doors are doors in the back wall, each { x, to, at?, look, col?, sign? }.
 function buildRoom(id, o, items) {
   const w = o.w, h = o.h, gx = w / 2 - 12;
   const sc = {
-    id, w, h, outdoor: false, objects: [], doors: [], windows: o.windows || [],
+    id, w, h, outdoor: false, bikes: !!o.bikes, surface: o.surface, objects: [], doors: [], windows: o.windows || [],
     bounds: { x0: 0, y0: 0, x1: w, y1: h + 4 },
     ground: buildRoomGround(o),
     solids: [
@@ -692,7 +774,10 @@ function buildRoom(id, o, items) {
     glows: o.glows || [],
   };
   const house = OUT.houses.find(hh => hh.id === id);
-  sc.doors.push({ x: gx, y: h - 6, w: 24, h: 12, to: 'out', need: 'down', spawn: { x: house.doorWorldX, y: OUT.base + 12 } });
+  const exit = o.exit || { to: 'out', at: { x: house.doorWorldX, y: OUT.base + 12, dir: 'down' } };
+  sc.doors.push(Object.assign({ x: gx, y: h - 6, w: 24, h: 12, need: 'down' }, exit));
+  for (const d of o.doors || []) sc.doors.push({ x: d.x - 8, y: WALL + 2, w: 16, h: 8, need: 'up', to: d.to, at: d.at, sound: d.sound });
+  if (o.exitLook === 'stairs') sc.solids.push({ x: gx - 4, y: h - 36, w: 3, h: 36 }, { x: gx + 25, y: h - 36, w: 3, h: 36 });
   sc.entry = { x: w / 2, y: h - 18 };
   for (const it of items) { sc.objects.push(it); if (it.solid) sc.solids.push(it.solid); }
   return sc;

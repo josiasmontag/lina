@@ -44,7 +44,8 @@ function vestFront(g, o) {
   R(g, 9, 17 + o, 1, 6, c.zip); R(g, 10, 17 + o, 1, 6, c.vestSh); P(g, 9, 18 + o, '#fff1c0');
 }
 
-// Current hairstyle used while building sprites: 'pigtails' or 'loose'.
+// Current hairstyle used while building sprites: 'pigtails', 'loose' or
+// 'short' (only the other children wear it short).
 let HAIR = 'pigtails';
 const SCRUNCHIE = { lilac: '#c9a0dc', mint: '#94d6bb' };
 
@@ -99,7 +100,7 @@ function linaHead(g, o, blink) {
   // hair cap + thick blunt fringe with wispy tips
   R(g, 6, 0 + o, 8, 1, c.hair); R(g, 4, 1 + o, 12, 1, c.hair); R(g, 3, 2 + o, 14, 5, c.hair);
   P(g, 5, 7 + o, c.hair); P(g, 8, 7 + o, c.hair); P(g, 11, 7 + o, c.hair); P(g, 14, 7 + o, c.hair);
-  const side = HAIR === 'loose' ? 8 : 4;
+  const side = HAIR === 'loose' ? 8 : HAIR === 'short' ? 2 : 4;
   R(g, 3, 7 + o, 1, side, c.hair); R(g, 16, 7 + o, 1, side, c.hair);
   R(g, 4, 7 + o, 1, 2, c.hair); R(g, 15, 7 + o, 1, 2, c.hair);
   R(g, 6, 2 + o, 5, 1, c.hairHi); R(g, 5, 3 + o, 2, 1, c.hairHi); R(g, 12, 2 + o, 2, 1, c.hairHi);
@@ -127,9 +128,11 @@ function linaBack(g, s, o, riding, ears) {
     frontArm(g, 3, 15 + o, riding ? 0 : (s > 0 ? 1 : 0));
     frontArm(g, 15, 15 + o, riding ? 0 : (s < 0 ? 1 : 0));
   }
-  R(g, 6, 0 + o, 8, 1, c.hair); R(g, 4, 1 + o, 12, 1, c.hair); R(g, 3, 2 + o, 14, 12, c.hair);
+  R(g, 6, 0 + o, 8, 1, c.hair); R(g, 4, 1 + o, 12, 1, c.hair); R(g, 3, 2 + o, 14, HAIR === 'short' ? 9 : 12, c.hair);
   R(g, 6, 2 + o, 5, 1, c.hairHi); R(g, 5, 3 + o, 2, 1, c.hairHi); R(g, 12, 2 + o, 2, 1, c.hairHi);
-  if (HAIR === 'loose') {
+  if (HAIR === 'short') { // cropped at the neck
+    R(g, 6, 11 + o, 8, 2, c.skin); R(g, 4, 10 + o, 12, 1, c.hairDk); R(g, 6, 5 + o, 1, 4, c.hairDk); R(g, 13, 5 + o, 1, 4, c.hairDk);
+  } else if (HAIR === 'loose') {
     R(g, 4, 14 + o, 12, 4, c.hair); R(g, 5, 18 + o, 10, 1, c.hair);
     P(g, 5, 19 + o, c.hair); P(g, 8, 19 + o, c.hair); P(g, 11, 19 + o, c.hair); P(g, 14, 19 + o, c.hair);
     R(g, 6, 8 + o, 1, 10, c.hairDk); R(g, 13, 9 + o, 1, 9, c.hairDk); R(g, 9, 11 + o, 1, 7, c.hairDk);
@@ -162,10 +165,10 @@ function linaSide(g, s, o, riding, blink, ears) {
   // head
   R(g, 7, 6 + o, 8, 7, c.skin); P(g, 15, 9 + o, c.skin); P(g, 15, 10 + o, c.skinSh);
   R(g, 6, 0 + o, 7, 1, c.hair); R(g, 4, 1 + o, 10, 1, c.hair); R(g, 3, 2 + o, 12, 5, c.hair);
-  R(g, 3, 7 + o, 7, HAIR === 'loose' ? 8 : 6, c.hair); P(g, 11, 7 + o, c.hair); P(g, 14, 7 + o, c.hair);
+  R(g, 3, 7 + o, 7, HAIR === 'loose' ? 8 : HAIR === 'short' ? 3 : 6, c.hair); P(g, 11, 7 + o, c.hair); P(g, 14, 7 + o, c.hair);
   R(g, 6, 2 + o, 5, 1, c.hairHi); R(g, 4, 3 + o, 2, 1, c.hairHi); P(g, 5, 9 + o, c.hairHi);
   if (HAIR === 'loose') P(g, 4, 12 + o, c.hairHi);
-  else pigtail(g, 2, 10 + o, SCRUNCHIE.lilac);
+  else if (HAIR === 'pigtails') pigtail(g, 2, 10 + o, SCRUNCHIE.lilac);
   if (blink) R(g, 12, 9 + o, 2, 1, c.eye);
   else { R(g, 12, 8 + o, 2, 2, c.eye); P(g, 13, 8 + o, c.eyeHi); }
   P(g, 12, 10 + o, c.blush); P(g, 14, 11 + o, c.mouth);
@@ -347,6 +350,7 @@ const BMP = {
   note: ['..##.', '..#.#', '..#..', '..#..', '###..', '###..', '.#...'],
   star: ['..#..', '.###.', '#####', '.###.', '##.##'],
   z: ['####', '..#.', '.#..', '####'],
+  hand: ['.#.#.', '.#.#.#', '######', '#####.', '.####.', '..##..'],
 };
 
 function makeIcons() {
