@@ -34,6 +34,11 @@ Park your bike or look at the prams in the porch, sit down on the cloakroom benc
 hallway, visit the panda group or go upstairs to the badger group (build a block tower, kick
 the ball, have a nap on a mat), or go out into the garden with its sandpit, water tap, swings
 and climbing frame.
+Walk up the side street through the WIESN gate to a little Oktoberfest. Buy a gingerbread
+heart at the Lebkuchen stand and Lina wears it round her neck. Sit down at a beer table and the
+waitress brings a Maß and a Brezn (press Ⓐ for a sip or a bite; the first sip is a "Prost!"
+with the whole table). Ride the carousel or go round once on the Ferris wheel. Grown-ups in
+Lederhosen and Dirndl stroll about, and now and then the beer garden sways along to the band.
 
 ## iPhone and iPad
 
@@ -51,6 +56,7 @@ The icons in `icons/` are drawn from the game's own sprites. Run
 - `js/props.js`: houses, trees, playground, furniture, traffic lights, building site
 - `js/scenes.js`: the street, the crossroads, the park and the three house interiors
 - `js/kita.js`: the kindergarten: the building, its rooms and garden, and the other children
+- `js/wiesn.js`: the Oktoberfest: the gate, beer tent and tables, carousel, Ferris wheel, gingerbread stand and the grown-ups in Tracht
 - `js/main.js`: game loop, movement, bike, camera, lighting
 - `js/audio.js` / `js/input.js`: synthesized sounds, keyboard, gamepad and touch
 - `sounds/`: the few recorded sounds (Lina's "yay")

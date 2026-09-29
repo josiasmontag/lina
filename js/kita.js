@@ -52,7 +52,7 @@ function kidSprites(k) {
     const set = buildLinaSet(k.style);
     const b = k.top;
     S = {
-      walk: set.lina, blink: set.blink, sit: set.linaSit, skin: k.skin,
+      walk: set.lina, blink: set.blink, sit: set.linaSit, skin: k.skin, ride: { right: set.horseSit, left: set.horseSitLeft },
       sleeper: { head: set.sleepHead, skin: k.skin, phase: Math.random() * 6, blanket: [b, shade(b, 0.06), shade(b, 0.35), shade(b, -0.12), shade(b, -0.06), shade(b, -0.25)] },
     };
   } finally {
@@ -67,15 +67,18 @@ const faceTo = (from, x, y) => {
   return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
 };
 
-// A child. 'wander' walks around `area` now and then; 'stay' keeps to one
-// spot (at a table, by the toys) and looks around, hopping when `play`.
-function makeKid(look, x, y, o = {}) {
-  const S = kidSprites(look);
+// Someone walking about, drawn from a sprite set S (walk + blink). 'wander'
+// walks around `area` now and then; 'stay' keeps to one spot (at a table,
+// by the toys) and looks around, hopping when `play`. `h` is how tall they
+// are, `greet` what they say when Lina says hi, `extra` draws something
+// they carry (a balloon).
+function makePerson(S, x, y, o = {}) {
+  const h = o.h || 32;
   return {
-    x, y, kid: true, S, dir: o.dir || 'down', mode: o.mode || 'stay', area: o.area, looks: o.looks || [o.dir || 'down'], play: o.play,
+    x, y, kid: !!o.kid, S, dir: o.dir || 'down', mode: o.mode || 'stay', area: o.area, looks: o.looks || [o.dir || 'down'], play: o.play,
     state: 'idle', t: 1 + Math.random() * 3, tx: x, ty: y, dist: 0, moving: false, blink: 0, blinkT: 1 + Math.random() * 3, happy: 0, hop: 0,
-    shadow: [6, 2],
-    get top() { return this.y - 32; },
+    shadow: [h > 32 ? 7 : 6, 2],
+    get top() { return this.y - h; },
     update(dt) {
       this.blinkT -= dt;
       if (this.blinkT < 0) { this.blink = 0.13; this.blinkT = 2 + Math.random() * 3; }
@@ -117,15 +120,17 @@ function makeKid(look, x, y, o = {}) {
       else if (this.blink > 0) s = S.blink[this.dir];
       else s = S.walk[this.dir][0];
       drawSprite(ctx, s, this.x, this.y - z);
+      if (o.extra) o.extra(ctx, this, z);
     },
-    interact(o) {
-      o.happy = 1.2; o.hop = 0.4; o.state = 'idle'; o.t = 1;
-      o.dir = faceTo(o, Pl.x, Pl.y);
-      Sound.giggle(0.9 + Math.random() * 0.3);
-      burst(o.x, o.y - 32, 'heart', 3);
+    interact(p) {
+      p.happy = 1.2; p.hop = 0.4; p.state = 'idle'; p.t = 1;
+      p.dir = faceTo(p, Pl.x, Pl.y);
+      if (o.greet) o.greet(p); else Sound.giggle(0.9 + Math.random() * 0.3);
+      burst(p.x, p.top, 'heart', 3);
     },
   };
 }
+function makeKid(look, x, y, o = {}) { return makePerson(kidSprites(look), x, y, Object.assign({ kid: true }, o)); }
 
 // ---- signs: a panda and a badger ------------------------------------------
 function drawPanda(g, cx, cy) {
@@ -583,7 +588,7 @@ function benchObj(x, y, len, kid = null) {
     draw(ctx) {
       drawSprite(ctx, this.spr, this.x, this.y);
       if (kid) drawSprite(ctx, kid.S.sit, this.x + kid.dx, this.y - 6 - (Math.sin(G.t * 3 + 1) > 0.7 ? 1 : 0));
-      if (Pl.sit && Pl.sit.obj === this) drawSprite(ctx, SPR.linaSit, Pl.x, this.y - 6);
+      if (Pl.sit && Pl.sit.obj === this) drawLinaSit(ctx, Pl.x, this.y - 6);
     },
     interact: o => startSit(o),
   });

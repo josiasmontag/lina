@@ -407,6 +407,14 @@ function buildLinaSet(style) {
     R(g, 10, 7, 2, 8, LC.sw); P(g, 10, 9, LC.swDot); P(g, 11, 12, LC.swDot); R(g, 10, 5, 2, 2, LC.skin);
     R(g, 13, 11, 2, 1, LC.mouth);
   });
+  // Lina astride a carousel horse, side view: a leg down its flank, a hand on the pole
+  S.horseSit = sprite(20, 29, 10, 22, g => {
+    linaSide(g, 0, 0, true, false);
+    R(g, 8, 20, 6, 3, LC.pants); P(g, 11, 21, LC.dot);
+    R(g, 11, 23, 3, 3, LC.pants); R(g, 11, 26, 4, 1, LC.shoe); R(g, 11, 27, 4, 1, LC.shoeDk);
+    R(g, 10, 15, 2, 2, LC.sw); R(g, 12, 15, 3, 2, LC.sw); P(g, 11, 16, LC.swDot); R(g, 15, 15, 2, 2, LC.skin);
+  });
+  S.horseSitLeft = mirrorSprite(S.horseSit);
   return S;
 }
 

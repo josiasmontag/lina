@@ -137,6 +137,11 @@ function mirrorSprite(s) { return { c: mirrorCanvas(s.c), ax: s.c.width - s.ax, 
 let WS = 3;
 function snapPx(v) { return Math.round(v * WS) / WS; }
 function drawSprite(ctx, s, x, y) { ctx.drawImage(s.c, snapPx(x - s.ax), snapPx(y - s.ay)); }
+// Only canvas rows r0..r1-1 of a sprite (the top half of someone behind a table).
+function drawSpriteRows(ctx, s, x, y, r0, r1) {
+  const w = s.c.width;
+  ctx.drawImage(s.c, 0, r0, w, r1 - r0, snapPx(x - s.ax), snapPx(y - s.ay) + r0, w, r1 - r0);
+}
 
 const _shadowCache = {};
 function drawShadow(ctx, x, y, rx, ry, a = 0.3) {

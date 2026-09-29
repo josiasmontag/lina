@@ -12,7 +12,8 @@ const G = {
   particles: [], trans: null, target: null, night: 0, shake: 0, camOff: { x: 0, y: -14 },
 };
 const Pl = { x: 0, y: 0, dir: 'down', vx: 0, vy: 0, riding: false, dist: 0, frame: 0, moving: false,
-  swing: null, slide: null, climb: null, sleep: null, sit: null, blink: 0, blinkT: 2.5, jump: 0, earsT: 0, ice: null };
+  swing: null, slide: null, climb: null, sleep: null, sit: null, ride: null, blink: 0, blinkT: 2.5, jump: 0, earsT: 0, ice: null,
+  heart: null, foam: 0 };
 const bike = { scene: 'out', x: 0, y: 0, face: 'right' };
 const cat = { x: 600, y: 520, tx: 600, ty: 520, state: 'sit', t: 2, face: 'right', dist: 0, follow: 0 };
 const butterflies = [];
@@ -64,7 +65,7 @@ function init() {
   if (window.ResizeObserver) new ResizeObserver(resize).observe(cv);
   makeClouds();
   G.scenes.out = buildOutdoor();
-  Object.assign(G.scenes, buildInteriors(), buildKita());
+  Object.assign(G.scenes, buildInteriors(), buildKita(), buildWiesn());
   G.scene = G.scenes.out;
   const home = OUT.houses[0];
   Pl.x = home.doorWorldX; Pl.y = OUT.sw1 + 14; Pl.dir = 'down';
@@ -173,6 +174,7 @@ function drawParticles() {
     else if (p.kind === 'star') drawSprite(ctx, SPR.icon.star, p.x, p.y);
     else if (p.kind === 'note') drawSprite(ctx, p.spr, p.x, p.y);
     else if (p.kind === 'z') drawSprite(ctx, SPR.icon.z, p.x, p.y);
+    else if (p.draw) p.draw(ctx, p);
     else { ctx.fillStyle = p.col; ctx.fillRect(Math.round(p.x), Math.round(p.y), p.kind === 'confetti' || p.kind === 'fallleaf' ? 2 : 1, 1); }
   }
   ctx.globalAlpha = 1;
@@ -308,29 +310,38 @@ function drawSleeper(b, who = { head: SPR.sleepHead, skin: LC.skin, blanket: PIN
 }
 
 // ---------------------------------------------------------------- bench ----
-// Sitting down on a bench (the one in the kindergarten cloakroom). The bench
-// draws Lina itself; get up by walking away or pressing a button.
+// Sitting down on a bench (the kindergarten cloakroom, a beer table). The
+// bench draws Lina itself; get up by walking away or pressing a button.
+// A bench can seat her itself (sitAt), give Ⓐ something to do while she
+// sits (sitAct), and say where she stands up (standY, onStand).
 function startSit(o) {
-  const [a, b] = o.seat || [0, 0];
   Pl.sit = { obj: o, t: 0 };
-  Pl.x = o.x + Math.max(a, Math.min(b, Pl.x - o.x)); Pl.y = o.y + 1; Pl.dir = 'down'; Pl.vx = Pl.vy = 0;
+  if (o.sitAt) o.sitAt(Pl);
+  else { const [a, b] = o.seat || [0, 0]; Pl.x = o.x + Math.max(a, Math.min(b, Pl.x - o.x)); Pl.y = o.y + 1; }
+  Pl.dir = 'down'; Pl.vx = Pl.vy = 0;
   Sound.step('wood');
 }
 function updateSit(dt, mag) {
-  const s = Pl.sit;
+  const s = Pl.sit, o = s.obj;
   s.t += dt;
+  if (s.t > 0.4 && o.sitAct && Input.pressed('interact')) { o.sitAct(); return; }
   if (s.t > 0.4 && (mag > 0.5 || Input.pressed('interact') || Input.pressed('bell'))) {
-    const o = s.obj;
     Pl.sit = null;
-    Pl.y = o.y + 9;
-    if (blocked(G.scene, Pl.x, Pl.y)) Pl.y += 6;
+    Pl.y = o.standY ?? o.y + 9;
+    if (blocked(G.scene, Pl.x, Pl.y)) Pl.y = o.standY !== undefined ? o.y + 8 : Pl.y + 6;
+    if (o.onStand) o.onStand();
     Sound.step('wood');
   }
 }
 
+// ---------------------------------------------------------------- rides ----
+// On a fairground ride (the carousel, the Ferris wheel) the ride draws Lina,
+// moves her along, tells the camera where to look and lets her off again.
+function updateRide(dt, mv, mag) { if (Pl.ride.obj.rideUpdate) Pl.ride.obj.rideUpdate(dt, mv, mag); }
+
 // -------------------------------------------------------------- targets ----
 function findTarget() {
-  if (Pl.riding || Pl.swing || Pl.slide || Pl.climb || Pl.sleep || Pl.sit || G.trans) return null;
+  if (Pl.riding || Pl.swing || Pl.slide || Pl.climb || Pl.sleep || Pl.sit || Pl.ride || G.trans) return null;
   const [dx, dy] = DIRV[Pl.dir];
   const fx = Pl.x + dx * 10, fy = Pl.y - 3 + dy * 8;
   let best = null, bd = 24;
@@ -357,7 +368,7 @@ function goTo(sceneId, x, y, dir, sound = 'door') {
   G.trans = { t: 0, dur: 0.35, stage: 'out', cb: () => {
     G.scene = G.scenes[sceneId]; Pl.x = x; Pl.y = y; Pl.dir = dir; Pl.vx = Pl.vy = 0;
     G.particles = [];
-    Sound.setMood(G.scene.outdoor ? 'out' : 'in');
+    Sound.setMood(G.scene.mood || (G.scene.outdoor ? 'out' : 'in'));
     snapCamera();
   } };
 }
@@ -386,6 +397,7 @@ function updatePlayer(dt) {
   const mag = Math.hypot(mv.x, mv.y);
 
   if (Pl.sleep) { updateSleep(dt, mag); return; }
+  if (Pl.ride) { updateRide(dt, mv, mag); return; }
   if (Pl.sit) { updateSit(dt, mag); return; }
   if (Pl.slide) { updateSlide(dt); return; }
   if (Pl.climb) { updateClimb(dt, mv, mag); return; }
@@ -536,6 +548,7 @@ function updateWorld(dt) {
       if (!o.rider) o.amp = Math.max(0, o.amp - dt * 0.35);
     }
   }
+  if (Pl.foam > 0) Pl.foam -= dt;
   G.night += ((Pl.sleep ? 0.62 : 0) - G.night) * Math.min(1, dt * 1.5);
   if (G.shake > 0) G.shake -= dt;
   if (G.trans) {
@@ -555,6 +568,7 @@ function camFocusOffset() {
   let fx, fy;
   if (Pl.swing) { fx = Pl.swing.obj.x; fy = Pl.swing.obj.y - 20; }
   else if (Pl.sleep) { fx = Pl.sleep.bed.x + 20; fy = Pl.sleep.bed.y - 20; }
+  else if (Pl.ride && Pl.ride.obj.focus) [fx, fy] = Pl.ride.obj.focus();
   else { fx = Pl.x + (Pl.riding ? Pl.vx * 0.35 : 0); fy = Pl.y - 14 + (Pl.riding ? Pl.vy * 0.3 : 0); }
   return [fx - Pl.x, fy - Pl.y];
 }
@@ -572,8 +586,32 @@ function updateCamera(dt, snap = false) {
 function snapCamera() { updateCamera(0, true); }
 
 // -------------------------------------------------------------- render -----
+// The gingerbread heart round Lina's neck and a beer foam moustache, drawn
+// over her sprites. (bx, by) is where pixel (0, 0) of her front or side view
+// lands; side views get the heart edge on, sx is its left column there.
+function drawHeartFront(ctx, bx, by) {
+  if (!Pl.heart) return;
+  ctx.fillStyle = '#e5484d'; ctx.fillRect(bx + 6, by + 13, 1, 1); ctx.fillRect(bx + 12, by + 13, 1, 1);
+  lebHeart(ctx, bx + 5, by + 14, Pl.heart.col);
+}
+function drawHeartSide(ctx, sx, by, iceLeft) {
+  if (!Pl.heart) return;
+  ctx.fillStyle = '#9a5a2e'; ctx.fillRect(sx, by + 14, 2, 7);
+  ctx.fillStyle = Pl.heart.col; ctx.fillRect(sx + (iceLeft ? 0 : 1), by + 14, 1, 7);
+}
+function drawFoam(ctx, bx, by) {
+  if (Pl.foam <= 0) return;
+  ctx.fillStyle = '#fffaf0'; ctx.fillRect(bx + 8, by + 10, 4, 1); ctx.fillRect(bx + 8, by + 11, 1, 1); ctx.fillRect(bx + 11, by + 11, 1, 1);
+}
+// Lina sitting (on a swing, a bench, at a beer table), front view.
+function drawLinaSit(ctx, x, y) {
+  drawSprite(ctx, SPR.linaSit, x, y);
+  const bx = snapPx(x) - 10, by = snapPx(y) - 22;
+  drawHeartFront(ctx, bx, by); drawFoam(ctx, bx, by);
+}
+
 function drawPlayer() {
-  if (Pl.swing || Pl.sleep || Pl.sit) return;
+  if (Pl.swing || Pl.sleep || Pl.sit || Pl.ride) return;
   if (Pl.slide) { drawSprite(ctx, Pl.slide.spr, Pl.x, Pl.y - 1 - Pl.slide.z); return; }
   if (Pl.climb) {
     const c = Pl.climb, o = c.obj;
@@ -588,6 +626,17 @@ function drawPlayer() {
   else if (Pl.blink > 0 && !Pl.moving) s = SPR.blink[Pl.dir];
   else s = SPR.lina[Pl.dir][Pl.frame];
   drawSprite(ctx, s, Pl.x, Pl.y - z);
+  const X = snapPx(Pl.x), Y = snapPx(Pl.y - z);
+  if (Pl.riding) {
+    if (Pl.dir === 'down') drawHeartFront(ctx, X - 10, Y - 36);
+    else if (Pl.dir === 'right') drawHeartSide(ctx, X - 2, Y - 38, false);
+    else if (Pl.dir === 'left') drawHeartSide(ctx, X, Y - 38, true);
+  } else {
+    const by = Y - 28 + Pl.frame % 2;
+    if (Pl.dir === 'down') { drawHeartFront(ctx, X - 10, by); if (Pl.earsT <= 0) drawFoam(ctx, X - 10, by); }
+    else if (Pl.dir === 'right') drawHeartSide(ctx, X + 3, by, false);
+    else if (Pl.dir === 'left') drawHeartSide(ctx, X - 5, by, true);
+  }
   // the ice cream in her hand (the hand from the sprite, in sprite pixels)
   if (Pl.ice && !Pl.riding && Pl.earsT <= 0 && Pl.dir !== 'up') {
     const bob = Pl.frame % 2, hx = { down: 16, right: 10, left: 9 }[Pl.dir];
@@ -615,7 +664,7 @@ function render() {
   const list = [];
   for (const o of sc.objects) list.push(o);
   if (bike.scene === sc.id) list.push({ y: bike.y, shadow: [14, 2], x: bike.x, draw() { drawSprite(ctx, SPR.bike[bike.face], bike.x, bike.y); } });
-  if (!Pl.swing && !Pl.sleep && !Pl.sit) list.push({ y: Pl.y, x: Pl.x, shadow: Pl.riding ? (Pl.dir === 'left' || Pl.dir === 'right' ? [15, 2] : [6, 2]) : [6, 2], draw: drawPlayer });
+  if (!Pl.swing && !Pl.sleep && !Pl.sit && !Pl.ride) list.push({ y: Pl.y, x: Pl.x, shadow: Pl.riding ? (Pl.dir === 'left' || Pl.dir === 'right' ? [15, 2] : [6, 2]) : [6, 2], draw: drawPlayer });
   if (sc === G.scenes.out) list.push({ y: cat.y, x: cat.x, shadow: [6, 1], draw: drawCat });
 
   // things lying flat on the floor (mats, puddles), then shadows

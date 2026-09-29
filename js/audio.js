@@ -222,13 +222,15 @@ const Sound = (() => {
   }
 
   function newSection() {
-    const types = mood === 'out'
-      ? ['full', 'full', 'melody', 'soft', 'bouncy', 'bouncy', 'call']
+    const types = mood === 'out' ? ['full', 'full', 'melody', 'soft', 'bouncy', 'bouncy', 'call']
+      : mood === 'fest' ? ['full', 'bouncy', 'bouncy', 'call']
       : ['melody', 'soft', 'soft', 'call', 'melody'];
     const prev = section && section.type;
     let type = rnd(types);
     if (type === prev && Math.random() < 0.6) type = rnd(types);
-    section = { type, instr: rnd(INSTR), arp: Math.random() < 0.65, bars: rnd([8, 8, 12, 16]) };
+    section = mood === 'fest'
+      ? { type, instr: rnd(['brass', 'brass', 'box', 'flute']), arp: false, bars: rnd([8, 12, 16]) }
+      : { type, instr: rnd(INSTR), arp: Math.random() < 0.65, bars: rnd([8, 8, 12, 16]) };
     if (Math.random() < 0.4) key = rnd([0, 2, -3, 5, -2, -5, 3]);
     prog = rnd(PROGS);
     secBars = 0; phraseIdx = 0;
@@ -265,10 +267,12 @@ const Sound = (() => {
     if (name === 'marimba') { tone(f, 0.55, { vol: 0.11, dest: d, t }); tone(f * 4, 0.07, { vol: 0.02, dest: d, t }); }
     if (name === 'pluck') { tone(f, dur + 0.35, { type: 'triangle', vol: 0.075, dest: d, t }); }
     if (name === 'bell') { tone(f, 1.4, { vol: 0.06, dest: d, t }); tone(f * 2.76, 0.4, { vol: 0.012, dest: d, t }); tone(f * 5.4, 0.15, { vol: 0.005, dest: d, t }); }
+    if (name === 'brass') { tone(f, dur + 0.1, { type: 'sawtooth', vol: 0.016, attack: 0.04, pad: true, dest: d, t }); tone(f, dur + 0.2, { type: 'triangle', vol: 0.06, attack: 0.03, dest: d, t }); }
   }
 
+  const BPM = { out: 100, in: 82, fest: 116 };
   function playStep(t) {
-    const e = 60 / (mood === 'out' ? 100 : 82) / 2;
+    const e = 60 / BPM[mood] / 2;
     if (step === 0 && moodChanged) { moodChanged = false; bar = 0; section = null; }
     if (bar === 0 && step === 0) {
       if (!section || secBars >= section.bars) newSection();
@@ -276,10 +280,15 @@ const Sound = (() => {
     }
     const h = t + Math.random() * 0.012;
     const root = prog[bar], d = musicBus, type = section.type;
+    // at the fair a brass band plays: oom on the beat, pa in between
+    if (mood === 'fest') {
+      if (step % 4 === 0) tone(hz(midi(root + (step === 4 ? 4 : 0), 48)), e * 1.6, { type: 'triangle', vol: 0.11, dest: d, t });
+      if (step % 4 === 2) for (const c of [root, root + 2, root + 4]) tone(hz(midi(c, 60)), e * 0.7, { type: 'square', vol: 0.011, dest: d, t: h });
+    }
     // soft pad chord
-    if (step === 0 && type !== 'bouncy') for (const c of [root, root + 2, root + 4]) tone(hz(midi(c, 60)), e * 8, { vol: 0.02, attack: 0.5, pad: true, dest: d, t });
+    if (step === 0 && type !== 'bouncy' && mood !== 'fest') for (const c of [root, root + 2, root + 4]) tone(hz(midi(c, 60)), e * 8, { vol: 0.02, attack: 0.5, pad: true, dest: d, t });
     // bass
-    if (type !== 'soft') {
+    if (type !== 'soft' && mood !== 'fest') {
       if (step === 0) tone(hz(midi(root, 48)), e * 3.5, { type: 'triangle', vol: 0.09, dest: d, t });
       if (step === 4 && Math.random() < 0.85) tone(hz(midi(root + (Math.random() < 0.5 ? 4 : 0), 48)), e * 3, { type: 'triangle', vol: 0.07, dest: d, t });
       if (type === 'bouncy' && (step === 2 || step === 6)) tone(hz(midi(root + 2, 48)), e * 0.9, { type: 'triangle', vol: 0.05, dest: d, t });
@@ -389,7 +398,7 @@ const Sound = (() => {
     // the tick of a German pedestrian light, a bit brighter on green
     tick(vol, go) { tone(go ? 1250 : 950, 0.025, { type: 'square', vol: vol * 0.35 }); noise(0.02, { vol, freq: 2600, q: 3 }); },
     press() { noise(0.03, { vol: 0.12, freq: 1800, q: 2 }); tone(1500, 0.06, { type: 'square', vol: 0.03, delay: 0.02 }); },
-    hello() { tone(196, 0.22, { type: 'triangle', vol: 0.16, slide: 1.25, attack: 0.03 }); tone(247, 0.3, { type: 'triangle', vol: 0.16, slide: 0.85, attack: 0.03, delay: 0.24 }); },
+    hello(p = 1) { tone(196 * p, 0.22, { type: 'triangle', vol: 0.16, slide: 1.25, attack: 0.03 }); tone(247 * p, 0.3, { type: 'triangle', vol: 0.16, slide: 0.85, attack: 0.03, delay: 0.24 }); },
     // slide whistle going down
     wheee() { tone(1400, 0.7, { vol: 0.09, slide: 0.3, attack: 0.04, vibrato: 0.02 }); tone(700, 0.7, { type: 'triangle', vol: 0.05, slide: 0.3, attack: 0.04 }); },
     yay() { playClip('yay'); },
@@ -416,6 +425,36 @@ const Sound = (() => {
     scribble() { for (let i = 0; i < 5; i++) noise(0.05, { vol: 0.04, freq: 3000 + Math.random() * 2000, q: 2, delay: i * 0.07 }); },
     chirp() { [0, 0.18, 0.3].forEach(d => tone(2300 + Math.random() * 600, 0.12, { vol: 0.05, slide: 1.35, delay: d })); },
     sparkle() { [1568, 2093, 2637, 3136].forEach((f, i) => tone(f, 0.35, { vol: 0.045, delay: i * 0.06 })); },
+    // the Wiesn: paying at the gingerbread stand, clinking glasses, a gulp of
+    // the Maß, a bite of the Brezn, the carousel horse, the carousel organ
+    coin() { tone(988, 0.08, { type: 'square', vol: 0.04 }); tone(1319, 0.4, { type: 'square', vol: 0.04, delay: 0.08 }); },
+    clink() { for (const [f, d] of [[2800, 0], [3710, 0], [2950, 0.05], [3900, 0.05]]) tone(f, 0.35, { vol: 0.04, delay: d }); },
+    gulp() { for (const d of [0.15, 0.4]) tone(320, 0.14, { vol: 0.13, slide: 0.55, delay: d }); },
+    crunch() { for (const d of [0, 0.12]) noise(0.07, { vol: 0.1, freq: 1800 + Math.random() * 900, q: 0.8, delay: d }); },
+    neigh() { tone(950, 0.8, { type: 'sawtooth', vol: 0.025, slide: 0.5, vibrato: 0.09, attack: 0.03 }); tone(950, 0.8, { type: 'triangle', vol: 0.07, slide: 0.5, vibrato: 0.09, attack: 0.03 }); },
+    // "Ach du lieber Augustin" as an oom-pa-pa waltz on a fairground organ;
+    // returns its length in seconds
+    organ() {
+      if (!ac) return 0;
+      const m = x => 440 * Math.pow(2, (x - 69) / 12), b = 60 / 138, t0 = ac.currentTime + 0.1;
+      const tune = [[67, .75], [69, .25], [67, 1], [65, 1], [64, 1], [60, 1], [60, 1], [62, 1], [55, 1], [55, 1], [64, 1], [60, 1], [60, 1],
+        [67, .75], [69, .25], [67, 1], [65, 1], [64, 1], [60, 1], [60, 1], [62, 1], [55, 1], [59, 1], [60, 3]];
+      let t = t0;
+      for (const [n, beats] of tune) {
+        const f = m(n);
+        tone(f, beats * b + 0.1, { type: 'triangle', vol: 0.11, vibrato: 0.012, t });
+        tone(f * 2, beats * b, { type: 'square', vol: 0.012, t });
+        tone(f * 4, 0.06, { vol: 0.012, t });
+        t += beats * b;
+      }
+      [48, 48, 43, 48, 48, 48, 43, 48].forEach((bass, bar) => {
+        const tb = t0 + bar * 3 * b, ch = bass === 43 ? [59, 62, 65] : [60, 64, 67];
+        tone(m(bass), b * 0.9, { type: 'triangle', vol: 0.12, t: tb });
+        for (const k of [1, 2]) for (const c of ch) tone(m(c), b * 0.4, { type: 'square', vol: 0.008, t: tb + k * b });
+      });
+      duck(t - t0 + 1.2);
+      return t - t0;
+    },
     setMood(m) { if (m !== mood) { mood = m; moodChanged = true; } },
     hold(on) { hold = on; if (ac) updateGain(); },
     toggleMusic() { musicOn = !musicOn; if (ac) updateGain(); return musicOn; },

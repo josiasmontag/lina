@@ -72,6 +72,20 @@ function paintLawn(g, W, H, r, patches, flowers) {
   }
 }
 
+// Cobblestones; the bricks run along the street (vertical: a north-south one).
+const COBBLES = ['#8d8a8c', '#9a9698', '#7f7c80', '#a5a1a0', '#8a8480', '#96918a'];
+function paintCobbles(g, r, x0, y0, x1, y1, vertical) {
+  g.save(); g.beginPath(); g.rect(x0, y0, x1 - x0, y1 - y0); g.clip();
+  R(g, x0, y0, x1 - x0, y1 - y0, '#4d494e');
+  const [bw, bh, sx, sy] = vertical ? [4, 5, 5, 6] : [5, 4, 6, 5];
+  const [a0, a1, b0, b1, da, db] = vertical ? [x0, x1, y0, y1, sx, sy] : [y0, y1, x0, x1, sy, sx];
+  for (let a = a0, row = 0; a < a1; a += da, row++) for (let b = b0 - (row % 2) * 3; b < b1; b += db) {
+    const col = pick(r, COBBLES), x = vertical ? a : b, y = vertical ? b : a;
+    R(g, x, y, bw, bh, col); R(g, x, y, bw, 1, shade(col, 0.15)); R(g, x, y + bh - 1, bw, 1, shade(col, -0.18));
+  }
+  g.restore();
+}
+
 function buildOutdoorGround(flowerSpots) {
   const { W, H } = OUT;
   const [c, g] = makeCanvas(W, H);
@@ -94,18 +108,7 @@ function buildOutdoorGround(flowerSpots) {
   pave(OUT.sw1, OUT.road); pave(OUT.roadB, OUT.sw2B);
 
   // cobblestone road (bricks run along the road)
-  const stones = ['#8d8a8c', '#9a9698', '#7f7c80', '#a5a1a0', '#8a8480', '#96918a'];
-  const cobbles = (x0, y0, x1, y1, vertical) => {
-    g.save(); g.beginPath(); g.rect(x0, y0, x1 - x0, y1 - y0); g.clip();
-    R(g, x0, y0, x1 - x0, y1 - y0, '#4d494e');
-    const [bw, bh, sx, sy] = vertical ? [4, 5, 5, 6] : [5, 4, 6, 5];
-    const [a0, a1, b0, b1, da, db] = vertical ? [x0, x1, y0, y1, sx, sy] : [y0, y1, x0, x1, sy, sx];
-    for (let a = a0, row = 0; a < a1; a += da, row++) for (let b = b0 - (row % 2) * 3; b < b1; b += db) {
-      const col = pick(r, stones), x = vertical ? a : b, y = vertical ? b : a;
-      R(g, x, y, bw, bh, col); R(g, x, y, bw, 1, shade(col, 0.15)); R(g, x, y + bh - 1, bw, 1, shade(col, -0.18));
-    }
-    g.restore();
-  };
+  const cobbles = (x0, y0, x1, y1, vertical) => paintCobbles(g, r, x0, y0, x1, y1, vertical);
   cobbles(0, OUT.road, W, OUT.roadB, false);
   // zebra crossings
   const stripe = (x, y, w, h) => {
@@ -354,6 +357,7 @@ function buildOutdoor() {
 
   buildCrossroads(sc, add, lamp);
   buildKitaOutside(sc, add);
+  buildWiesnGate(sc, add);
   return sc;
 }
 
@@ -374,7 +378,7 @@ function addSwing(sc, add, x, y, kid = null) {
         ctx.fillRect(sx - 4, this.y - 38, 1, sy - (this.y - 38));
         ctx.fillRect(sx + 4, this.y - 38, 1, sy - (this.y - 38));
         if (moving && this.rider) {
-          drawSprite(ctx, SPR.linaSit, sx, sy + 1);
+          drawLinaSit(ctx, sx, sy + 1);
           ctx.fillStyle = '#2a1c18'; ctx.fillRect(sx - 6, sy, 12, 3);
           ctx.fillStyle = '#e2336f'; ctx.fillRect(sx - 5, sy, 10, 2);
           ctx.fillStyle = LC.skin; ctx.fillRect(sx - 7, sy - 8, 2, 2); ctx.fillRect(sx + 5, sy - 8, 2, 2);
