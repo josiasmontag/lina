@@ -332,6 +332,8 @@ const Sound = (() => {
     step(surface) {
       if (surface === 'gravel') noise(0.08, { vol: 0.09, freq: 3000 + Math.random() * 1500, q: 0.8 });
       else if (surface === 'wood') noise(0.05, { vol: 0.07, freq: 500 + Math.random() * 200, q: 3 });
+      else if (surface === 'tile') noise(0.04, { vol: 0.06, freq: 1700 + Math.random() * 400, q: 4 });
+      else if (surface === 'sand') noise(0.09, { vol: 0.06, freq: 600 + Math.random() * 300, q: 0.6 });
       else noise(0.05, { vol: 0.04, freq: 800 + Math.random() * 300, q: 2 });
     },
     bell() {
@@ -391,6 +393,27 @@ const Sound = (() => {
     // slide whistle going down
     wheee() { tone(1400, 0.7, { vol: 0.09, slide: 0.3, attack: 0.04, vibrato: 0.02 }); tone(700, 0.7, { type: 'triangle', vol: 0.05, slide: 0.3, attack: 0.04 }); },
     yay() { playClip('yay'); },
+    // the kindergarten: door chime, the buzzer that opens the door, a locked door rattling
+    dingdong() {
+      duck(2);
+      for (const [f, d] of [[659, 0], [523, 0.5]]) { tone(f, 1.4, { vol: 0.14, delay: d }); tone(f * 2.01, 0.6, { vol: 0.03, delay: d }); tone(f * 3, 0.25, { vol: 0.012, delay: d }); }
+    },
+    buzz() { tone(118, 0.8, { type: 'square', vol: 0.035, pad: true }); tone(177, 0.8, { type: 'sawtooth', vol: 0.025, pad: true }); noise(0.6, { vol: 0.03, freq: 350, q: 2 }); },
+    rattle() { for (const d of [0, 0.09, 0.2]) noise(0.04, { vol: 0.09, freq: 1200 + Math.random() * 500, q: 3, delay: d }); },
+    stairs() { for (let i = 0; i < 5; i++) noise(0.05, { vol: 0.07, freq: 450 + Math.random() * 250, q: 3, delay: i * 0.08 }); },
+    giggle(pitch = 1) {
+      for (let i = 0; i < 4; i++) tone((980 - i * 50) * pitch, 0.1, { type: 'triangle', vol: 0.06, slide: 0.75, attack: 0.01, delay: i * 0.11, vibrato: 0.03 });
+    },
+    shh() { noise(0.7, { vol: 0.05, freq: 4200, q: 0.7, type: 'highpass' }); },
+    water() { noise(0.16, { vol: 0.035, freq: 1900 + Math.random() * 900, q: 0.7 }); },
+    splash() { noise(0.2, { vol: 0.09, freq: 1300 + Math.random() * 500, q: 0.6 }); tone(500 + Math.random() * 200, 0.1, { vol: 0.04, slide: 2 }); },
+    dig() { noise(0.14, { vol: 0.08, freq: 800 + Math.random() * 400, q: 0.8 }); },
+    click(n = 0) { tone(520 + n * 45, 0.07, { type: 'triangle', vol: 0.13 }); noise(0.02, { vol: 0.05, freq: 2500, q: 3 }); },
+    clatter() { for (let i = 0; i < 9; i++) tone(350 + Math.random() * 700, 0.06, { type: 'triangle', vol: 0.09, delay: i * 0.045 + Math.random() * 0.03 }); },
+    creak() { tone(310, 0.22, { type: 'sawtooth', vol: 0.02, slide: 1.3, attack: 0.05 }); },
+    bubble() { for (let i = 0; i < 6; i++) tone(260 + Math.random() * 300, 0.08, { vol: 0.06, slide: 1.9, delay: i * 0.13 + Math.random() * 0.05 }); },
+    kick() { tone(170, 0.12, { vol: 0.24, slide: 0.5 }); noise(0.04, { vol: 0.08, freq: 500, type: 'lowpass' }); },
+    scribble() { for (let i = 0; i < 5; i++) noise(0.05, { vol: 0.04, freq: 3000 + Math.random() * 2000, q: 2, delay: i * 0.07 }); },
     chirp() { [0, 0.18, 0.3].forEach(d => tone(2300 + Math.random() * 600, 0.12, { vol: 0.05, slide: 1.35, delay: d })); },
     sparkle() { [1568, 2093, 2637, 3136].forEach((f, i) => tone(f, 0.35, { vol: 0.045, delay: i * 0.06 })); },
     setMood(m) { if (m !== mood) { mood = m; moodChanged = true; } },

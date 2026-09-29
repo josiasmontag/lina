@@ -12,7 +12,7 @@ const G = {
   particles: [], trans: null, target: null, night: 0, shake: 0, camOff: { x: 0, y: -14 },
 };
 const Pl = { x: 0, y: 0, dir: 'down', vx: 0, vy: 0, riding: false, dist: 0, frame: 0, moving: false,
-  swing: null, slide: null, climb: null, sleep: null, blink: 0, blinkT: 2.5, jump: 0, earsT: 0, ice: null };
+  swing: null, slide: null, climb: null, sleep: null, sit: null, blink: 0, blinkT: 2.5, jump: 0, earsT: 0, ice: null };
 const bike = { scene: 'out', x: 0, y: 0, face: 'right' };
 const cat = { x: 600, y: 520, tx: 600, ty: 520, state: 'sit', t: 2, face: 'right', dist: 0, follow: 0 };
 const butterflies = [];
@@ -64,7 +64,7 @@ function init() {
   if (window.ResizeObserver) new ResizeObserver(resize).observe(cv);
   makeClouds();
   G.scenes.out = buildOutdoor();
-  Object.assign(G.scenes, buildInteriors());
+  Object.assign(G.scenes, buildInteriors(), buildKita());
   G.scene = G.scenes.out;
   const home = OUT.houses[0];
   Pl.x = home.doorWorldX; Pl.y = OUT.sw1 + 14; Pl.dir = 'down';
@@ -130,7 +130,8 @@ function moveActor(a, dx, dy, hw, slide = false) {
 }
 
 function surfaceAt(x, y) {
-  if (!G.scene.outdoor) return 'wood';
+  if (G.scene.surfaceAt) return G.scene.surfaceAt(x, y);
+  if (!G.scene.outdoor) return G.scene.surface || 'wood';
   return inGravel(x, y) ? 'gravel' : 'soft';
 }
 
@@ -147,6 +148,8 @@ function burst(x, y, kind, n) {
     if (kind === 'spark') { p.col = pick(Math.random, ['#ffd24a', '#ff9a3c', '#fff0a0']); p.vy = -30 - Math.random() * 30; p.life = p.max = 0.8; }
     if (kind === 'leaf') { p.col = pick(Math.random, ['#55873d', '#76a54a', '#3c6934']); p.g = 40; p.vy = -35; p.vx *= 1.8; }
     if (kind === 'debris') { p.col = pick(Math.random, ['#9a9698', '#bdb19c', '#7d5c3e', '#c4bfb6']); p.g = 160; p.vy = -35 - Math.random() * 25; p.vx *= 1.4; p.life = p.max = 0.6; }
+    if (kind === 'drop') { p.col = pick(Math.random, ['#8fc4ff', '#bfe3ff', '#5f9fd8']); p.g = 150; p.vy = -30 - Math.random() * 25; p.life = p.max = 0.6; }
+    if (kind === 'sand') { p.col = pick(Math.random, ['#dcc48f', '#c7ad78', '#ead6a8']); p.g = 130; p.vy = -35 - Math.random() * 20; p.vx *= 1.4; p.life = p.max = 0.7; }
     if (kind === 'dust') { p.col = 'rgba(220,205,180,0.8)'; p.vy = -6 - Math.random() * 6; p.vx *= 0.4; p.life = p.max = 0.5; }
     if (kind === 'z') { p.vx = 6 + Math.random() * 6; p.life = p.max = 2.2; }
     G.particles.push(p);
@@ -288,29 +291,53 @@ function updateSleep(dt, mag) {
   if (s.t > 1.5 && (mag > 0.5 || Input.pressed('interact') || Input.pressed('bell'))) wake();
 }
 // Lina tucked in: head on the pillow, blanket pulled up, hands on top.
-function drawSleeper(b) {
+// Other children sleep the same way, with their own head and blanket.
+const PINK_BLANKET = ['#ec94b2', '#f19cb9', '#f7bfd2', '#d97a9e', '#e38aab', '#c96d8f'];
+function drawSleeper(b, who = { head: SPR.sleepHead, skin: LC.skin, blanket: PINK_BLANKET, phase: 0 }) {
   const bx = Math.round(b.x) - 14, by = Math.round(b.y) - 41;
-  const breathe = Math.sin(G.t * 1.6) > 0 ? 0 : 1;
-  drawSprite(ctx, SPR.sleepHead, b.x, by + 18);
+  const breathe = Math.sin(G.t * 1.6 + who.phase) > 0 ? 0 : 1;
+  const [bl, blBump, blHi, blSide, blFold, blHem] = who.blanket;
+  drawSprite(ctx, who.head, b.x, by + 18);
   const R2 = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(bx + x, by + y, w, h); };
-  R2(2, 19, 24, 17, '#ec94b2');
-  R2(7, 22 - breathe, 14, 11 + breathe, '#f19cb9'); R2(7, 22 - breathe, 14, 1, '#f7bfd2');
-  R2(6, 23 - breathe, 1, 10, '#d97a9e'); R2(21, 23 - breathe, 1, 10, '#d97a9e');
-  R2(2, 18, 24, 3, '#f7bfd2'); R2(2, 20, 24, 1, '#e38aab'); R2(2, 34, 24, 2, '#c96d8f');
+  R2(2, 19, 24, 17, bl);
+  R2(7, 22 - breathe, 14, 11 + breathe, blBump); R2(7, 22 - breathe, 14, 1, blHi);
+  R2(6, 23 - breathe, 1, 10, blSide); R2(21, 23 - breathe, 1, 10, blSide);
+  R2(2, 18, 24, 3, blHi); R2(2, 20, 24, 1, blFold); R2(2, 34, 24, 2, blHem);
   for (const [x, y] of [[4, 25], [23, 27], [13, 29]]) { R2(x, y, 1, 1, '#fff'); R2(x + 2, y, 1, 1, '#fff'); R2(x, y + 1, 3, 1, '#fff'); R2(x + 1, y + 2, 1, 1, '#fff'); }
-  R2(8, 18, 2, 2, LC.skin); R2(18, 18, 2, 2, LC.skin);
+  R2(8, 18, 2, 2, who.skin); R2(18, 18, 2, 2, who.skin);
+}
+
+// ---------------------------------------------------------------- bench ----
+// Sitting down on a bench (the one in the kindergarten cloakroom). The bench
+// draws Lina itself; get up by walking away or pressing a button.
+function startSit(o) {
+  const [a, b] = o.seat || [0, 0];
+  Pl.sit = { obj: o, t: 0 };
+  Pl.x = o.x + Math.max(a, Math.min(b, Pl.x - o.x)); Pl.y = o.y + 1; Pl.dir = 'down'; Pl.vx = Pl.vy = 0;
+  Sound.step('wood');
+}
+function updateSit(dt, mag) {
+  const s = Pl.sit;
+  s.t += dt;
+  if (s.t > 0.4 && (mag > 0.5 || Input.pressed('interact') || Input.pressed('bell'))) {
+    const o = s.obj;
+    Pl.sit = null;
+    Pl.y = o.y + 9;
+    if (blocked(G.scene, Pl.x, Pl.y)) Pl.y += 6;
+    Sound.step('wood');
+  }
 }
 
 // -------------------------------------------------------------- targets ----
 function findTarget() {
-  if (Pl.riding || Pl.swing || Pl.slide || Pl.climb || Pl.sleep || G.trans) return null;
+  if (Pl.riding || Pl.swing || Pl.slide || Pl.climb || Pl.sleep || Pl.sit || G.trans) return null;
   const [dx, dy] = DIRV[Pl.dir];
   const fx = Pl.x + dx * 10, fy = Pl.y - 3 + dy * 8;
   let best = null, bd = 24;
   const consider = (o, ix, iy) => { const d = Math.hypot(ix - fx, iy - fy); if (d < bd) { bd = d; best = o; } };
   for (const o of G.scene.objects) if (o.interact) consider(o, o.ix ?? o.x, o.iy ?? o.y);
   if (bike.scene === G.scene.id) consider(BIKE_TARGET, bike.x, bike.y - 2);
-  if (G.scene.outdoor) consider(CAT_TARGET, cat.x, cat.y);
+  if (G.scene === G.scenes.out) consider(CAT_TARGET, cat.x, cat.y);
   return best;
 }
 const BIKE_TARGET = { interact: mount, get x() { return bike.x; }, get top() { return bike.y - 22; } };
@@ -324,9 +351,9 @@ function targetTop(o) {
 }
 
 // ------------------------------------------------------------ scenes -------
-function goTo(sceneId, x, y, dir) {
+function goTo(sceneId, x, y, dir, sound = 'door') {
   if (G.trans) return;
-  Sound.door();
+  Sound[sound]();
   G.trans = { t: 0, dur: 0.35, stage: 'out', cb: () => {
     G.scene = G.scenes[sceneId]; Pl.x = x; Pl.y = y; Pl.dir = dir; Pl.vx = Pl.vy = 0;
     G.particles = [];
@@ -335,17 +362,19 @@ function goTo(sceneId, x, y, dir) {
   } };
 }
 
+// A door leads to d.to, arriving at d.at (or the room's entrance). Doors
+// with `when` only open while it says so (the kindergarten wants a ring).
 function checkDoors(mv) {
   const hb = { x: Pl.x - 5, y: Pl.y - 4, w: 10, h: 4 };
   for (const d of G.scene.doors) {
     if (!overlap(hb, d)) continue;
     if ((d.need === 'up' && mv.y < -0.3) || (d.need === 'down' && mv.y > 0.3)) {
-      if (d.to === 'out') goTo('out', d.spawn.x, d.spawn.y, 'down');
-      else {
-        if (Pl.riding) dismount();
-        const room = G.scenes[d.to];
-        goTo(d.to, room.entry.x, room.entry.y, 'up');
-      }
+      if (d.when && !d.when()) { if (d.locked) d.locked(); continue; }
+      const room = G.scenes[d.to];
+      const at = d.at || { x: room.entry.x, y: room.entry.y, dir: 'up' };
+      if (Pl.riding && !room.bikes) dismount();
+      if (d.onUse) d.onUse();
+      goTo(d.to, at.x, at.y, at.dir, d.sound);
       return;
     }
   }
@@ -357,6 +386,7 @@ function updatePlayer(dt) {
   const mag = Math.hypot(mv.x, mv.y);
 
   if (Pl.sleep) { updateSleep(dt, mag); return; }
+  if (Pl.sit) { updateSit(dt, mag); return; }
   if (Pl.slide) { updateSlide(dt); return; }
   if (Pl.climb) { updateClimb(dt, mv, mag); return; }
   if (Pl.swing) {
@@ -478,7 +508,7 @@ function updateButterflies(dt) {
     b.x += Math.sin(b.t * 7) * 0.3; b.y += Math.cos(b.t * 9) * 0.35;
     // flee from Lina a little
     const pd = Math.hypot(b.x - Pl.x, b.y - (Pl.y - 12));
-    if (pd < 20 && G.scene.outdoor) { b.ty -= 30; b.tx += (b.x - Pl.x) * 2; }
+    if (pd < 20 && G.scene === G.scenes.out) { b.ty -= 30; b.tx += (b.x - Pl.x) * 2; }
   }
 }
 
@@ -543,7 +573,7 @@ function snapCamera() { updateCamera(0, true); }
 
 // -------------------------------------------------------------- render -----
 function drawPlayer() {
-  if (Pl.swing || Pl.sleep) return;
+  if (Pl.swing || Pl.sleep || Pl.sit) return;
   if (Pl.slide) { drawSprite(ctx, Pl.slide.spr, Pl.x, Pl.y - 1 - Pl.slide.z); return; }
   if (Pl.climb) {
     const c = Pl.climb, o = c.obj;
@@ -585,10 +615,11 @@ function render() {
   const list = [];
   for (const o of sc.objects) list.push(o);
   if (bike.scene === sc.id) list.push({ y: bike.y, shadow: [14, 2], x: bike.x, draw() { drawSprite(ctx, SPR.bike[bike.face], bike.x, bike.y); } });
-  if (!Pl.swing && !Pl.sleep) list.push({ y: Pl.y, x: Pl.x, shadow: Pl.riding ? (Pl.dir === 'left' || Pl.dir === 'right' ? [15, 2] : [6, 2]) : [6, 2], draw: drawPlayer });
-  if (sc.outdoor) list.push({ y: cat.y, x: cat.x, shadow: [6, 1], draw: drawCat });
+  if (!Pl.swing && !Pl.sleep && !Pl.sit) list.push({ y: Pl.y, x: Pl.x, shadow: Pl.riding ? (Pl.dir === 'left' || Pl.dir === 'right' ? [15, 2] : [6, 2]) : [6, 2], draw: drawPlayer });
+  if (sc === G.scenes.out) list.push({ y: cat.y, x: cat.x, shadow: [6, 1], draw: drawCat });
 
-  // shadows
+  // things lying flat on the floor (mats, puddles), then shadows
+  for (const o of list) if (o.floor) o.floor(ctx);
   for (const o of list) {
     if (o.shadowFn) o.shadowFn(ctx);
     else if (o.shadow) drawShadow(ctx, o.x, o.y, o.shadow[0], o.shadow[1]);
@@ -596,14 +627,14 @@ function render() {
   list.sort((a, b) => a.y - b.y);
   for (const o of list) {
     if (o.draw) o.draw(ctx, G.t);
-    else {
+    else if (o.spr) {
       const hop = o.hop > 0 ? Math.round(Math.sin(Math.PI * o.hop / 0.4) * 4) : 0;
       drawSprite(ctx, o.spr, o.x, o.y - hop);
     }
   }
 
   // butterflies
-  if (sc.outdoor) for (const b of butterflies) {
+  if (sc === G.scenes.out) for (const b of butterflies) {
     const f = Math.sin(b.t * 22) > 0;
     const x = Math.round(b.x), y = Math.round(b.y);
     ctx.fillStyle = 'rgba(34,22,38,0.25)'; ctx.fillRect(x - 1, y + 14, 3, 1);

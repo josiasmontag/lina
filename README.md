@@ -29,6 +29,11 @@ or get an ice cream at the stand on the corner.
 Use the mirror in Lina's room to switch between pigtails and loose hair.
 East of the crossroads a path leads into the woods to a second playground, with a big
 slide, a jungle gym to climb around on and a play ice cream parlour that serves sand ice cream.
+Behind the building site is the kindergarten. Ring the bell and the door buzzes open.
+Park your bike or look at the prams in the porch, sit down on the cloakroom bench in the
+hallway, visit the panda group or go upstairs to the badger group (build a block tower, kick
+the ball, have a nap on a mat), or go out into the garden with its sandpit, water tap, swings
+and climbing frame.
 
 ## iPhone and iPad
 
@@ -45,6 +50,7 @@ The icons in `icons/` are drawn from the game's own sprites. Run
 - `js/sprites.js`: Lina, her pink woom bike, the cat, icons
 - `js/props.js`: houses, trees, playground, furniture, traffic lights, building site
 - `js/scenes.js`: the street, the crossroads, the park and the three house interiors
+- `js/kita.js`: the kindergarten: the building, its rooms and garden, and the other children
 - `js/main.js`: game loop, movement, bike, camera, lighting
 - `js/audio.js` / `js/input.js`: synthesized sounds, keyboard, gamepad and touch
 - `sounds/`: the few recorded sounds (Lina's "yay")
