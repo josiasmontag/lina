@@ -1,6 +1,6 @@
 'use strict';
 // ---------------------------------------------------------------------------
-// Characters: Lina, her pink woom bike, the neighbourhood cat, UI icons.
+// Characters: Lina, her pink woom bike, the Kita's scooter, the neighbourhood cat, UI icons.
 // Everything is drawn pixel by pixel in code and auto-outlined.
 // ---------------------------------------------------------------------------
 
@@ -317,6 +317,69 @@ function makeRider(dir, f) {
   });
 }
 
+// ---- The kick scooter from the kindergarten --------------------------------
+const SC_COL = { deck: '#4fb35a', deckHi: '#7fd88a', deckSh: '#2f7d3a', bar: '#27242b', grip: '#e5484d', pole: '#a3a8b0', poleHi: '#d2d6d9', tire: '#27242b', hub: '#c0c4ca' };
+
+// side view, facing right; (ox, gy) is the rear end of the deck on the ground
+function scooterSide(g, ox, gy, rot) {
+  const C = SC_COL;
+  for (const wx of [ox + 3, ox + 16]) { disc(g, wx, gy - 3, 2, C.tire); P(g, wx + (rot & 1 ? 1 : 0), gy - 3, C.hub); }
+  R(g, ox + 3, gy - 6, 13, 2, C.deck); R(g, ox + 3, gy - 6, 13, 1, C.deckHi); R(g, ox + 2, gy - 5, 2, 2, C.deckSh);
+  line(g, ox + 16, gy - 4, ox + 15, gy - 14, C.pole, 2); P(g, ox + 16, gy - 9, C.poleHi);
+  R(g, ox + 12, gy - 15, 7, 2, C.bar); R(g, ox + 12, gy - 15, 2, 2, C.grip); R(g, ox + 17, gy - 15, 2, 2, C.grip);
+}
+// seen from the front (front wheel) or the back (rear wheel and deck end)
+function scooterEnd(g, gy, back, rot) {
+  const C = SC_COL;
+  R(g, 10, gy - 5, 3, 5, C.tire); P(g, 11, gy - 4 + (rot & 1), '#3f3a3e');
+  if (back) { R(g, 8, gy - 7, 7, 2, C.deck); R(g, 8, gy - 7, 7, 1, C.deckHi); R(g, 10, gy - 5, 3, 1, C.deckSh); }
+  else { R(g, 10, gy - 13, 3, 8, C.pole); P(g, 11, gy - 10, C.poleHi); }
+}
+function scooterBar(g, gy) {
+  const C = SC_COL;
+  R(g, 5, gy - 13, 13, 2, C.bar); R(g, 4, gy - 13, 2, 2, C.grip); R(g, 17, gy - 13, 2, 2, C.grip);
+}
+
+// Lina on the scooter: one foot on the deck, the other kicking off the ground.
+// Kick frames: 0 both feet on the deck, 1 foot down, 2 pushed back, 3 coming back.
+function makeScooterRider(dir, f) {
+  if (dir === 'right') {
+    return sprite(30, 46, 15, 45, g => {
+      const gy = 45, ox = 5, tx = 3, ty = 11, hip = [tx + 9, ty + 22];
+      const foot = [[tx + 7, gy - 7], [tx + 4, gy - 1], [tx, gy - 1], [tx + 2, gy - 5]][f];
+      // the kicking leg behind, then scooter, Lina and the standing leg
+      line(g, hip[0], hip[1], foot[0] + 1, foot[1] - 2, LC.pantsSh, 2); R(g, foot[0], foot[1] - 1, 4, 2, LC.shoeDk);
+      scooterSide(g, ox, gy, f);
+      g.save(); g.translate(tx, ty); linaSide(g, 0, 0, true, false); g.restore();
+      R(g, tx + 9, ty + 22, 3, 4, LC.pants); P(g, tx + 10, ty + 23, LC.dot);
+      R(g, tx + 9, ty + 26, 4, 2, LC.shoe); R(g, tx + 10, ty + 26, 3, 1, LC.shoeDk);
+      line(g, tx + 10, ty + 16, ox + 12, gy - 14, LC.sw, 2); R(g, ox + 13, gy - 15, 2, 2, LC.skin);
+    });
+  }
+  // front and back: the kicking leg reaches down to the ground behind the deck
+  const legs = (g, gy, ty) => {
+    const kick = [4, 8, 9, 6][f];
+    R(g, 7, ty + 22, 3, 4, LC.pants); P(g, 8, ty + 24, LC.dot); R(g, 7, ty + 26, 3, 2, LC.shoe);
+    R(g, 13, ty + 22, 3, kick, LC.pants); R(g, 15, ty + 22, 1, kick, LC.pantsSh); R(g, 13, ty + 22 + kick, 3, 2, LC.shoe);
+  };
+  if (dir === 'down') {
+    return sprite(24, 44, 12, 43, g => {
+      const gy = 43, ty = 10;
+      legs(g, gy, ty);
+      g.save(); g.translate(2, ty); linaFront(g, 0, 0, true, false); g.restore();
+      scooterEnd(g, gy, false, f); scooterBar(g, gy);
+      R(g, 5, gy - 13, 2, 2, LC.skin); R(g, 17, gy - 13, 2, 2, LC.skin); // hands on the grips
+    });
+  }
+  return sprite(24, 44, 12, 43, g => { // up
+    const gy = 43, ty = 10;
+    scooterBar(g, gy);
+    legs(g, gy, ty);
+    g.save(); g.translate(2, ty); linaBack(g, 0, 0, true); g.restore();
+    scooterEnd(g, gy, true, f);
+  });
+}
+
 // ---- Cat -------------------------------------------------------------------
 function makeCat(f, sit) {
   const o = '#e39a4b', d = '#b8692c', l = '#f7d9ae', e = '#1d130f';
@@ -375,11 +438,12 @@ function makeIcons() {
 // ---- Build everything once ------------------------------------------------
 function buildLinaSet(style) {
   HAIR = style;
-  const S = { lina: {}, blink: {}, rider: {}, ears: {} };
+  const S = { lina: {}, blink: {}, rider: {}, scooterRider: {}, ears: {} };
   for (const dir of ['down', 'up', 'right']) {
     S.lina[dir] = [0, 1, 2, 3].map(f => linaWalk(dir, f, false));
     S.ears[dir] = [0, 1, 2, 3].map(f => linaWalk(dir, f, false, true));
     S.rider[dir] = [0, 1, 2, 3].map(f => makeRider(dir, f));
+    S.scooterRider[dir] = [0, 1, 2, 3].map(f => makeScooterRider(dir, f));
   }
   S.blink.down = linaWalk('down', 0, true);
   S.blink.right = linaWalk('right', 0, true);
@@ -387,6 +451,7 @@ function buildLinaSet(style) {
   S.lina.left = S.lina.right.map(mirrorSprite);
   S.ears.left = S.ears.right.map(mirrorSprite);
   S.rider.left = S.rider.right.map(mirrorSprite);
+  S.scooterRider.left = S.scooterRider.right.map(mirrorSprite);
   S.blink.left = mirrorSprite(S.blink.right);
   // head on the pillow, eyes closed (for sleeping in bed)
   S.sleepHead = sprite(20, 17, 10, 13, g => {
@@ -425,6 +490,8 @@ const SPR = (() => {
 
   const parked = sprite(34, 24, 17, 23, g => bikeSide(g, 0, 1, true));
   S.bike = { right: parked, left: mirrorSprite(parked) };
+  const scooter = sprite(20, 22, 10, 21, g => scooterSide(g, 0, 21, 0));
+  S.scooter = { right: scooter, left: mirrorSprite(scooter) };
 
   S.cat = { right: [0, 1, 2, 3].map(f => makeCat(f, false)), sit: makeCat(0, true) };
   S.cat.left = S.cat.right.map(mirrorSprite);

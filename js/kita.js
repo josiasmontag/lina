@@ -305,14 +305,6 @@ function makeKidBike(frame) {
   try { return sprite(34, 24, 17, 23, g => bikeSide(g, 0, 1, true)); } finally { Object.assign(BC, keep); }
 }
 
-function makeScooter() {
-  return sprite(20, 22, 10, 21, g => {
-    disc(g, 4, 18, 2, '#27242b'); disc(g, 16, 18, 2, '#27242b'); P(g, 4, 18, '#c0c4ca'); P(g, 16, 18, '#c0c4ca');
-    R(g, 4, 15, 12, 2, '#4fb35a'); R(g, 4, 15, 12, 1, '#7fd88a');
-    line(g, 15, 15, 14, 3, '#a3a8b0', 2); R(g, 10, 2, 9, 2, '#27242b'); R(g, 10, 2, 2, 2, '#e5484d'); R(g, 17, 2, 2, 2, '#e5484d');
-  });
-}
-
 // A pram seen from the side, with a hood and a blanket peeking out.
 function makePram(col) {
   return sprite(32, 28, 16, 27, g => {
@@ -642,7 +634,8 @@ function buildKita() {
   const kid = (i, x, y, o) => makeKid(KID_LOOKS[i], x, y, o);
   const hallDoors = { panda: 124, garden: 180, stairs: 236 };
 
-  // the porch: park bikes, scooters and prams here
+  // the porch: park bikes, scooters and prams here (the scooter is in main.js:
+  // Lina can ride it through the hallway out into the garden)
   const bikes = [makeKidBike('#4a8ad0'), makeKidBike('#4fb35a')];
   const ringBell = o => { Sound.bell(); burst(o.x + 8, o.y - 26, 'note', 2); };
   rooms.kitaVor = buildRoom('kitaVor', {
@@ -667,7 +660,6 @@ function buildKita() {
   }, [
     obj(34, 76, bikes[0], { shadow: [14, 2], solid: { x: 20, y: 73, w: 28, h: 3 }, interact: ringBell }),
     obj(40, 106, mirrorSprite(bikes[1]), { shadow: [14, 2], solid: { x: 26, y: 103, w: 28, h: 3 }, interact: ringBell }),
-    obj(72, 70, makeScooter(), { shadow: [8, 1], solid: { x: 64, y: 67, w: 16, h: 3 }, interact: o => { Sound.squeak(); burst(o.x, o.y - 22, 'star', 2); } }),
     pramObj(162, 74, '#f28bb0'),
     pramObj(176, 108, '#6f9fc8'),
   ]);
@@ -676,7 +668,7 @@ function buildKita() {
   const flurKid = { S: kidSprites(KID_LOOKS[2]), dx: 26 };
   rooms.kitaFlur = buildRoom('kitaFlur', {
     w: 288, h: 150, seed: 42, floor: '#9ec2a8', floorKind: 'lino', surface: 'tile', wall: '#fbeccd', pattern: 'dots', curtain: '#8fc4ff',
-    windows: [],
+    windows: [], scooters: true,
     exit: { to: 'kitaVor', at: { x: 104, y: WALL + 14, dir: 'down' } },
     doors: [
       { x: hallDoors.panda, to: 'kitaPanda', col: '#8fc46a', sign: pandaSign },
@@ -804,7 +796,7 @@ function buildKitaGarden(kid) {
   for (let x = gx + 4; x < gx + 20; x += 3) R(g, x, H - 15, 1, 6, '#9a3a32');
 
   const sc = {
-    id: 'kitaGarten', w: W, h: H, outdoor: true, objects: [], doors: [], ground: c,
+    id: 'kitaGarten', w: W, h: H, outdoor: true, scooters: true, objects: [], doors: [], ground: c,
     bounds: { x0: 14, y0: 50, x1: W - 14, y1: H + 4 },
     solids: [{ x: 0, y: H - 9, w: gx, h: 9 }, { x: gx + 24, y: H - 9, w: W - gx - 24, h: 9 }],
     surfaceAt: (x, y) => inBox(x, y) ? 'sand' : 'soft',
