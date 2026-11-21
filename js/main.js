@@ -11,10 +11,16 @@ const G = {
   t: 0, started: false, scene: null, scenes: {}, cam: { x: 0, y: 0 },
   particles: [], trans: null, target: null, night: 0, shake: 0, camOff: { x: 0, y: -14 },
 };
-const Pl = { x: 0, y: 0, dir: 'down', vx: 0, vy: 0, riding: false, dist: 0, frame: 0, moving: false,
+const Pl = { x: 0, y: 0, dir: 'down', vx: 0, vy: 0, riding: null, dist: 0, frame: 0, kick: 0, moving: false,
   swing: null, slide: null, climb: null, sleep: null, sit: null, ride: null, blink: 0, blinkT: 2.5, jump: 0, earsT: 0, ice: null,
   heart: null, foam: 0 };
-const bike = { scene: 'out', x: 0, y: 0, face: 'right' };
+// Things Lina can ride. Pl.riding is the one she is on (or null); a parked
+// one stays where she got off. The scooter lives in the Kita's porch and may
+// go wherever bikes may, and through the Kita's hallway into its garden.
+const bike = { kind: 'bike', scene: 'out', x: 0, y: 0, face: 'right', max: 135, push: 2.8, coast: 1.8, halfW: 9, shadow: 15 };
+const scooter = { kind: 'scooter', scene: 'kitaVor', x: 72, y: 70, face: 'right', max: 100, push: 2.2, coast: 0.9, halfW: 8, shadow: 10 };
+const VEHICLES = [bike, scooter];
+const canRide = (room, v) => room.bikes || (v === scooter && room.scooters);
 const cat = { x: 600, y: 520, tx: 600, ty: 520, state: 'sit', t: 2, face: 'right', dist: 0, follow: 0 };
 const butterflies = [];
 const DIRV = { down: [0, 1], up: [0, -1], left: [-1, 0], right: [1, 0] };
@@ -181,14 +187,15 @@ function drawParticles() {
 }
 
 // ---------------------------------------------------------------- bike -----
-function mount() {
-  Pl.riding = true; Pl.x = bike.x; Pl.y = bike.y; Pl.dir = bike.face; Pl.vx = Pl.vy = 0;
-  bike.scene = null; Sound.pop();
+function mount(v) {
+  Pl.riding = v; Pl.x = v.x; Pl.y = v.y; Pl.dir = v.face; Pl.vx = Pl.vy = 0;
+  v.scene = null; Sound.pop();
 }
 function dismount() {
-  Pl.riding = false;
-  bike.scene = G.scene.id; bike.x = Pl.x; bike.y = Pl.y;
-  bike.face = Pl.dir === 'left' ? 'left' : 'right';
+  const v = Pl.riding;
+  Pl.riding = null;
+  v.scene = G.scene.id; v.x = Pl.x; v.y = Pl.y;
+  v.face = Pl.dir === 'left' ? 'left' : 'right';
   for (const [dx, dy] of [[0, 10], [0, -10], [14, 0], [-14, 0], [0, 16]]) {
     if (!blocked(G.scene, Pl.x + dx, Pl.y + dy)) { Pl.x += dx; Pl.y += dy; break; }
   }
@@ -347,11 +354,11 @@ function findTarget() {
   let best = null, bd = 24;
   const consider = (o, ix, iy) => { const d = Math.hypot(ix - fx, iy - fy); if (d < bd) { bd = d; best = o; } };
   for (const o of G.scene.objects) if (o.interact) consider(o, o.ix ?? o.x, o.iy ?? o.y);
-  if (bike.scene === G.scene.id) consider(BIKE_TARGET, bike.x, bike.y - 2);
+  for (const t of VEHICLE_TARGETS) if (t.v.scene === G.scene.id) consider(t, t.v.x, t.v.y - 2);
   if (G.scene === G.scenes.out) consider(CAT_TARGET, cat.x, cat.y);
   return best;
 }
-const BIKE_TARGET = { interact: mount, get x() { return bike.x; }, get top() { return bike.y - 22; } };
+const VEHICLE_TARGETS = VEHICLES.map(v => ({ v, interact: () => mount(v), get x() { return v.x; }, get top() { return v.y - 22; } }));
 const CAT_TARGET = {
   interact() { Sound.meow(); burst(cat.x, cat.y - 12, 'heart', 3); cat.state = 'sit'; cat.t = 1.2; cat.follow = 14; cat.face = Pl.x < cat.x ? 'left' : 'right'; },
   get x() { return cat.x; }, get top() { return cat.y - 14; },
@@ -383,7 +390,7 @@ function checkDoors(mv) {
       if (d.when && !d.when()) { if (d.locked) d.locked(); continue; }
       const room = G.scenes[d.to];
       const at = d.at || { x: room.entry.x, y: room.entry.y, dir: 'up' };
-      if (Pl.riding && !room.bikes) dismount();
+      if (Pl.riding && !canRide(room, Pl.riding)) dismount();
       if (d.onUse) d.onUse();
       goTo(d.to, at.x, at.y, at.dir, d.sound);
       return;
@@ -410,7 +417,8 @@ function updatePlayer(dt) {
   }
 
   if (Input.pressed('bell')) {
-    if (Pl.riding) { Sound.bell(); burst(Pl.x, Pl.y - 40, 'note', 2); }
+    if (Pl.riding === bike) { Sound.bell(); burst(Pl.x, Pl.y - 40, 'note', 2); }
+    else if (Pl.riding) { Sound.squeak(); burst(Pl.x, Pl.y - 38, 'star', 2); }
     else if (Pl.jump <= 0) { Pl.jump = 0.42; Sound.boing(); }
   }
   if (Input.pressed('interact')) {
@@ -420,8 +428,9 @@ function updatePlayer(dt) {
 
   let speed;
   if (Pl.riding) {
-    const max = 135, tx = mv.x * max, ty = mv.y * max;
-    const k = mag > 0.1 ? 2.8 : 1.8;
+    // the scooter only speeds up while she kicks, and rolls out longer
+    const v = Pl.riding, tx = mv.x * v.max, ty = mv.y * v.max;
+    const k = mag > 0.1 ? v.push : v.coast;
     Pl.vx += (tx - Pl.vx) * Math.min(1, k * dt);
     Pl.vy += (ty - Pl.vy) * Math.min(1, k * dt);
     if (Math.hypot(Pl.vx, Pl.vy) < 2 && mag < 0.1) Pl.vx = Pl.vy = 0;
@@ -438,17 +447,23 @@ function updatePlayer(dt) {
   }
 
   const ox = Pl.x, oy = Pl.y;
-  const hit = moveActor(Pl, Pl.vx * dt, Pl.vy * dt, Pl.riding && (Pl.dir === 'left' || Pl.dir === 'right') ? 9 : 5, !Pl.riding);
+  const hit = moveActor(Pl, Pl.vx * dt, Pl.vy * dt, Pl.riding && (Pl.dir === 'left' || Pl.dir === 'right') ? Pl.riding.halfW : 5, !Pl.riding);
   if (Pl.riding) { if (hit.hitX) Pl.vx *= -0.2; if (hit.hitY) Pl.vy *= -0.2; }
   const moved = Math.hypot(Pl.x - ox, Pl.y - oy);
   Pl.dist += moved;
   Pl.moving = moved > 0.05;
 
   const prev = Pl.frame;
-  if (Pl.riding) Pl.frame = Math.floor(Pl.dist / 6) % 4;
+  if (Pl.riding === bike) Pl.frame = Math.floor(Pl.dist / 6) % 4;
+  else if (Pl.riding) {
+    // kick off while she pushes the stick and isn't at full speed yet, else stand and roll
+    Pl.kick = mag > 0.1 && speed < scooter.max * 0.92 ? Pl.kick + dt * 5.5 : 0;
+    Pl.frame = Math.floor(Pl.kick) % 4;
+    if (prev !== Pl.frame && Pl.frame === 1) Sound.step(surfaceAt(Pl.x, Pl.y));
+  }
   else Pl.frame = Pl.moving ? Math.floor(Pl.dist / 7) % 4 : 0;
   if (!Pl.riding && Pl.moving && prev !== Pl.frame && (Pl.frame === 1 || Pl.frame === 3)) Sound.step(surfaceAt(Pl.x, Pl.y));
-  if (Pl.riding && speed > 90 && Math.random() < dt * 10 && G.scene.outdoor) {
+  if (Pl.riding === bike && speed > 90 && Math.random() < dt * 10 && G.scene.outdoor) {
     burst(Pl.x - Math.sign(Pl.vx) * 10, Pl.y - 1, 'dust', 1);
   }
 
@@ -621,13 +636,18 @@ function drawPlayer() {
   }
   const z = Pl.jump > 0 ? Math.sin(Math.PI * (1 - Pl.jump / 0.42)) * 7 : 0;
   let s;
-  if (Pl.riding) s = SPR.rider[Pl.dir][Pl.frame];
+  if (Pl.riding === bike) s = SPR.rider[Pl.dir][Pl.frame];
+  else if (Pl.riding) s = SPR.scooterRider[Pl.dir][Pl.frame];
   else if (Pl.earsT > 0) s = SPR.ears[Pl.dir][Pl.frame];
   else if (Pl.blink > 0 && !Pl.moving) s = SPR.blink[Pl.dir];
   else s = SPR.lina[Pl.dir][Pl.frame];
   drawSprite(ctx, s, Pl.x, Pl.y - z);
   const X = snapPx(Pl.x), Y = snapPx(Pl.y - z);
-  if (Pl.riding) {
+  if (Pl.riding === scooter) {
+    if (Pl.dir === 'down') drawHeartFront(ctx, X - 10, Y - 33);
+    else if (Pl.dir === 'right') drawHeartSide(ctx, X + 1, Y - 34, false);
+    else if (Pl.dir === 'left') drawHeartSide(ctx, X - 3, Y - 34, true);
+  } else if (Pl.riding) {
     if (Pl.dir === 'down') drawHeartFront(ctx, X - 10, Y - 36);
     else if (Pl.dir === 'right') drawHeartSide(ctx, X - 2, Y - 38, false);
     else if (Pl.dir === 'left') drawHeartSide(ctx, X, Y - 38, true);
@@ -663,8 +683,8 @@ function render() {
   // drawables
   const list = [];
   for (const o of sc.objects) list.push(o);
-  if (bike.scene === sc.id) list.push({ y: bike.y, shadow: [14, 2], x: bike.x, draw() { drawSprite(ctx, SPR.bike[bike.face], bike.x, bike.y); } });
-  if (!Pl.swing && !Pl.sleep && !Pl.sit && !Pl.ride) list.push({ y: Pl.y, x: Pl.x, shadow: Pl.riding ? (Pl.dir === 'left' || Pl.dir === 'right' ? [15, 2] : [6, 2]) : [6, 2], draw: drawPlayer });
+  for (const v of VEHICLES) if (v.scene === sc.id) list.push({ y: v.y, shadow: [v.shadow - 1, v === bike ? 2 : 1], x: v.x, draw() { drawSprite(ctx, SPR[v.kind][v.face], v.x, v.y); } });
+  if (!Pl.swing && !Pl.sleep && !Pl.sit && !Pl.ride) list.push({ y: Pl.y, x: Pl.x, shadow: Pl.riding ? (Pl.dir === 'left' || Pl.dir === 'right' ? [Pl.riding.shadow, 2] : [6, 2]) : [6, 2], draw: drawPlayer });
   if (sc === G.scenes.out) list.push({ y: cat.y, x: cat.x, shadow: [6, 1], draw: drawCat });
 
   // things lying flat on the floor (mats, puddles), then shadows

@@ -17,7 +17,7 @@ then open http://localhost:8765.
 | Action | Keyboard | Xbox controller | Touch |
 |---|---|---|---|
 | Move | Arrows / WASD | Left stick / D-pad | Drag anywhere |
-| Get on/off bike, open doors, play with things | E / Space / Enter | A | Ⓐ button |
+| Get on/off bike or scooter, open doors, play with things | E / Space / Enter | A | Ⓐ button |
 | Bike bell (riding) / hop (walking) | Q / B | B / X / Y | Ⓑ button |
 | Music on/off | M | View | ♪ button |
 | Show controls | H | | |
@@ -33,7 +33,8 @@ Behind the building site is the kindergarten. Ring the bell and the door buzzes 
 Park your bike or look at the prams in the porch, sit down on the cloakroom bench in the
 hallway, visit the panda group or go upstairs to the badger group (build a block tower, kick
 the ball, have a nap on a mat), or go out into the garden with its sandpit, water tap, swings
-and climbing frame.
+and climbing frame. The scooter in the porch can be ridden: kick off through the hallway
+into the garden, or out into the street.
 Walk up the side street through the WIESN gate to a little Oktoberfest. Buy a gingerbread
 heart at the Lebkuchen stand and Lina wears it round her neck. Sit down at a beer table and the
 waitress brings a Maß and a Brezn (press Ⓐ for a sip or a bite; the first sip is a "Prost!"

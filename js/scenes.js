@@ -768,7 +768,7 @@ function backWallDoor(g, o, d) {
 function buildRoom(id, o, items) {
   const w = o.w, h = o.h, gx = w / 2 - 12;
   const sc = {
-    id, w, h, outdoor: false, bikes: !!o.bikes, surface: o.surface, objects: [], doors: [], windows: o.windows || [],
+    id, w, h, outdoor: false, bikes: !!o.bikes, scooters: !!o.scooters, surface: o.surface, objects: [], doors: [], windows: o.windows || [],
     bounds: { x0: 0, y0: 0, x1: w, y1: h + 4 },
     ground: buildRoomGround(o),
     solids: [
